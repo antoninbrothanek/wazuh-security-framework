@@ -40,13 +40,21 @@ Standard Wazuh rule IDs, levels, descriptions, decoder availability, and local r
 
 | Scenario | Windows Event ID | Standard Wazuh SID | Standard level | Custom rule(s) | Current status | Dashboard | Email policy |
 |---|---:|---:|---:|---|---|---|---|
-| Successful logon | 4624 | 60106 | 3 | None currently | IDENTIFIED - validation and use-case review pending | Yes | No for ordinary logons |
+| Successful logon | 4624 | Successful logon | 60106 | level 3 | VERIFIED | No custom rule
 | Failed logon | 4625 | 60105 / 60122 | 5 | 101000, 101001 | PARTIALLY TESTED - incorrect-password scenario implemented; remaining failure reasons to review | Yes | Correlated/high-risk cases only |
 | User logoff | 4634 | 60137 | 3 | None | IDENTIFIED - real-event validation pending | No | No |
 | Explicit credentials used | 4648 | Not found during initial analysis | — | Not yet implemented | ANALYSIS REQUIRED | Yes | Selected high-risk cases only |
 | Special privileges assigned | 4672 | 67028 in WEF baseline | 3 | None currently | IDENTIFIED - verify rule is loaded and suitable on target Wazuh | Yes | Selected cases only |
 | Account lockout | 4740 | 60115 | 9 | 101200 | TESTED | Yes | Yes - immediate operational/security notification |
 | Kerberos pre-authentication failure | 4771 | Base handling via Windows Security rules | varies | 101100, 101101, 101102, 101110 | TESTED for implemented 0x18 / 0x12 / repeated-failure scenarios | Planned in Kerberos milestone | Email for correlated password attack |
+
+Verified on SERVER01. Event 4624 is correctly collected and decoded by windows_eventchannel and matched by stock Wazuh rule 60106. High-volume event; no generic custom alert will be implemented. Event will serve as telemetry for targeted detections such as RDP logons, privileged-account logons, NTLM usage and authentication correlation.
+
+Exchange HealthMailbox accounts generate legitimate
+4624 events including Logon Type 8.
+
+Therefore Logon Type 8 alone MUST NOT be classified
+as malicious or trigger high-severity e-mail alerts.
 
 ---
 

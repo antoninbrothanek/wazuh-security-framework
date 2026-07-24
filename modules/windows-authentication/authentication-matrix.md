@@ -40,7 +40,7 @@ Standard Wazuh rule IDs, levels, descriptions, decoder availability, and local r
 
 | Scenario | Windows Event ID | Standard Wazuh SID | Standard level | Custom rule(s) | Current status | Dashboard | Email policy |
 |---|---:|---:|---:|---|---|---|---|
-| Successful logon | 4624 | Successful logon | 60106 | level 3 | VERIFIED | No custom rule
+| Successful logon | 4624 | 60106 | 3 | None | TESTED | Yes | No |
 | Failed logon | 4625 | 60105 / 60122 | 5 | 101000, 101001 | PARTIALLY TESTED - incorrect-password scenario implemented; remaining failure reasons to review | Yes | Correlated/high-risk cases only |
 | User logoff | 4634 | 60137 | 3 | None | IDENTIFIED - real-event validation pending | No | No |
 | Explicit credentials used | 4648 | Not found during initial analysis | — | Not yet implemented | ANALYSIS REQUIRED | Yes | Selected high-risk cases only |
@@ -48,33 +48,59 @@ Standard Wazuh rule IDs, levels, descriptions, decoder availability, and local r
 | Account lockout | 4740 | 60115 | 9 | 101200 | TESTED | Yes | Yes - immediate operational/security notification |
 | Kerberos pre-authentication failure | 4771 | Base handling via Windows Security rules | varies | 101100, 101101, 101102, 101110 | TESTED for implemented 0x18 / 0x12 / repeated-failure scenarios | Planned in Kerberos milestone | Email for correlated password attack |
 
-Verified on SERVER01. Event 4624 is correctly collected and decoded by windows_eventchannel and matched by stock Wazuh rule 60106. High-volume event; no generic custom alert will be implemented. Event will serve as telemetry for targeted detections such as RDP logons, privileged-account logons, NTLM usage and authentication correlation.
-
-Exchange HealthMailbox accounts generate legitimate
-4624 events including Logon Type 8.
-
-Therefore Logon Type 8 alone MUST NOT be classified
-as malicious or trigger high-severity e-mail alerts.
-
 ---
 
 ## Detailed decisions
 
 ### 4624 - Successful logon
 
-Standard rule `60106` is the expected baseline rule.
+Status: **TESTED**
 
-Ordinary successful logons are retained for investigation and dashboard analysis and do not generate email.
+Production validation on `SERVER01` confirmed:
 
-Before adding custom detection, the framework must validate real 4624 events and decide which scenarios are operationally useful. Possible candidates are documented only as investigation topics, not approved features:
+- Windows Event ID 4624 is generated normally.
+- Wazuh receives and decodes the event using `windows_eventchannel`.
+- Stock Wazuh rule `60106` matches the event.
+- Stock rule level is 3.
+- `mail` is false.
+- No generic custom rule is required.
 
+Relevant decoded fields confirmed in production include:
+
+- `win.eventdata.targetUserName`
+- `win.eventdata.targetDomainName`
+- `win.eventdata.targetUserSid`
+- `win.eventdata.logonType`
+- `win.eventdata.logonProcessName`
+- `win.eventdata.authenticationPackageName`
+- `win.eventdata.ipAddress`
+- `win.eventdata.ipPort`
+- `win.eventdata.elevatedToken`
+
+Observed legitimate production examples included:
+
+- service/system logons,
+- machine-account network logons,
+- normal user network logons,
+- Kerberos authentication,
+- NTLM authentication,
+- Exchange HealthMailbox activity.
+
+Event 4624 is high-volume authentication telemetry. Ordinary successful logons are retained for investigation, correlation, and dashboard analysis and do not generate email.
+
+No generic custom 4624 alert is approved.
+
+Targeted detections may later use 4624 as input only when a concrete security scenario is separately validated and documented. Investigation topics include:
+
+- RDP / RemoteInteractive logon,
 - privileged-account logon,
-- RDP logon,
-- unusual source workstation,
-- unusual source IP address,
-- logon outside an approved time window.
+- NTLM usage,
+- unusual source workstation or IP address,
+- successful logon following repeated failures.
 
-No custom 4624 rule is approved until a concrete scenario is validated and documented.
+Important production exception:
+
+Exchange HealthMailbox accounts generate legitimate Event 4624 activity, including **Logon Type 8**. Therefore Logon Type 8 alone must **not** be classified as malicious and must not generate a high-severity email alert without additional context.
 
 ### 4625 - Failed logon
 
@@ -225,15 +251,14 @@ Deployment must stop if required dependencies are missing or differ materially f
 
 Work must proceed in this order:
 
-1. **4624** - validate successful-logon stock behavior and decide approved use cases.
-2. **4625** - finish failed-logon status/subStatus classification.
-3. **4634** - validate stock logoff behavior.
-4. **4648** - analyze real explicit-credential events and stock coverage.
-5. **4672** - validate real event and standard rule 67028.
-6. Update this matrix after each verified result.
-7. Implement and validate the Windows Authentication dashboard.
-8. Review notification policy and documentation.
-9. Mark v0.2.0 complete only when all baseline scenarios have an explicit tested or intentionally excluded disposition.
+1. **4625** - finish failed-logon status/subStatus classification.
+2. **4634** - validate stock logoff behavior.
+3. **4648** - analyze real explicit-credential events and stock coverage.
+4. **4672** - validate real event and standard rule 67028.
+5. Update this matrix after each verified result.
+6. Implement and validate the Windows Authentication dashboard.
+7. Review notification policy and documentation.
+8. Mark v0.2.0 complete only when all baseline scenarios have an explicit tested or intentionally excluded disposition.
 
 ---
 

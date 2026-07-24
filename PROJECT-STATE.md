@@ -79,20 +79,41 @@ Status: IN DEVELOPMENT. Several detections are implemented and tested, but the c
 
 | Event ID | Meaning | Wazuh/custom coverage | Status | Email policy |
 |---:|---|---|---|---|
-| 4624 | Successful logon | stock 60106 identified | REVIEW / TEST REQUIRED | ordinary logon: No |
-| 4625 | Failed logon | stock 60105/60122 plus custom 101000/101001 | PARTIALLY TESTED | correlation/high-risk only |
+| 4624 | Successful logon | stock 60106 | TESTED | ordinary logon: No |
+| 4625 | Failed logon | stock 60105/60122 verified; custom 101000/101001/101002 unresolved | PARTIALLY TESTED - stock and failure-code behavior verified; custom rules not validated | correlation/high-risk only |
 | 4634 | User logoff | stock 60137 identified | TEST REQUIRED | No |
 | 4648 | Explicit credentials used | stock coverage not found during initial analysis | ANALYSIS REQUIRED | selected high-risk cases only |
 | 4672 | Special privileges assigned | stock 67028 identified in WEF baseline | TARGET VALIDATION REQUIRED | selected cases only |
 | 4740 | Account locked out | custom 101200 based on stock 60115 | TESTED | Yes |
 | 4771 | Kerberos pre-authentication failed | custom 101100/101101/101102/101110 | TESTED for implemented scenarios | correlated attack: Yes |
 
+### Event 4625 verified state
+
+Real and controlled events on 2026-07-24 confirmed that Event 4625 is received and decoded correctly and that stock rule `60122` produces the expected level 5 alert.
+
+Verified/observed failure combinations:
+
+- `0xc000006d / 0xc0000064` - username does not exist; controlled test with `WazuhNoSuchUser`.
+- `0xc000006d / 0xc000006a` - existing account with incorrect password; controlled test with `wazuh4738`.
+- `0xc000006e / 0xc0000071` - expired password; observed in production.
+- `0xc000006e / 0xc0000072` - disabled account; observed in production. The inspected sample originated from local Exchange process `MSExchangeMailboxAssistants.exe`, demonstrating that status/subStatus alone must not imply an attack.
+- `0xc000035b / 0x0` - observed NTLM/SSPI failure class; requires context and is not automatically classified as malicious.
+
+Custom rules in `rules/1010-windows-authentication_rules.xml` are currently **not validated**:
+
+- 101000 - intended incorrect-password classification; controlled matching 4625 event reached stock 60122 but 101000 did not fire.
+- 101001 - repeated incorrect-password correlation; cannot be considered validated while parent 101000 does not fire.
+- 101002 - intended nonexistent-username classification; controlled matching 4625 event reached stock 60122 but 101002 did not fire.
+
+A controlled experiment changing 101000 from parent `60122` to parent `60105` also failed to make 101000 fire. No further 4625 rules should be added until custom-rule evaluation is diagnosed.
+
 ### Implemented authentication rules
 
 `rules/1010-windows-authentication_rules.xml`
 
-- 101000 - Event 4625 incorrect-password classification.
-- 101001 - repeated incorrect password for the same account and source IP.
+- 101000 - present, intended Event 4625 incorrect-password classification; NOT VALIDATED / currently not firing in controlled test.
+- 101001 - present, intended repeated incorrect-password correlation; NOT VALIDATED because 101000 is not firing.
+- 101002 - present, intended Event 4625 nonexistent-username classification; NOT VALIDATED / currently not firing in controlled test.
 
 `rules/1011-windows-kerberos-4771.xml`
 
@@ -211,17 +232,18 @@ No duplicate custom rules are created for these groups.
 
 Privileged Group Management implementation is complete for the planned custom-rule set; two individual rule tests remain documented as pending and can be completed without expanding its scope.
 
+Event 4624 stock behavior has been validated. Event 4625 stock behavior and several real failure classes have been validated, but the custom 101000/101001/101002 branch is unresolved and must not be represented as tested.
+
 The next development work is to close the Windows Authentication v0.2.0 baseline in this order:
 
-1. Event 4624 - validate successful-logon stock behavior and define which scenarios, if any, require higher-severity detection.
-2. Event 4625 - complete failed-logon failure-reason analysis beyond the current incorrect-password case.
-3. Event 4634 - validate stock logoff behavior; no routine email.
-4. Event 4648 - analyze explicit-credential usage and stock Wazuh coverage before deciding on a custom rule.
-5. Event 4672 - verify real event behavior and confirm standard rule 67028 is loaded and suitable.
-6. Synchronize `authentication-matrix.md` with the verified results.
-7. Implement and validate the Windows Authentication dashboard.
-8. Review the notification policy and documentation.
-9. Mark Windows Authentication v0.2.0 complete only after all completion criteria are satisfied.
+1. Event 4625 - diagnose why custom rules 101000 and 101002 do not fire for controlled events that match stock 60122; do not expand the 4625 rule set until resolved.
+2. Event 4634 - validate stock logoff behavior; no routine email.
+3. Event 4648 - analyze explicit-credential usage and stock Wazuh coverage before deciding on a custom rule.
+4. Event 4672 - verify real event behavior and confirm standard rule 67028 is loaded and suitable.
+5. Keep `authentication-matrix.md` synchronized with verified results.
+6. Implement and validate the Windows Authentication dashboard.
+7. Review the notification policy and documentation.
+8. Mark Windows Authentication v0.2.0 complete only after all completion criteria are satisfied.
 
 Before adding another rule:
 

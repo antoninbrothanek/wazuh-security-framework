@@ -1,0 +1,6 @@
+<decoder name="pco-shorewall">
+  <parent>kernel</parent>
+  <prematch type="pcre2" offset="after_parent">^(net-fw|fw-net|fw-loc|loc-fw|loc-net) (DROP|ACCEPT|REJECT)</prematch>
+  <regex type="pcre2" offset="after_parent">^(net-fw|fw-net|fw-loc|loc-fw|loc-net) (DROP|ACCEPT|REJECT).*SRC=([0-9.]+) DST=([0-9.]+).*PROTO=([A-Z]+).*SPT=([0-9]+).*DPT=([0-9]+)</regex>
+  <order>extra_data,action,srcip,dstip,protocol,srcport,dstport</order>
+</decoder>

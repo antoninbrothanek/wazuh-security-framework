@@ -1,0 +1,7 @@
+<decoder name="pco-rspamd">
+  <parent>windows-date-format</parent>
+  <use_own_name>true</use_own_name>
+  <prematch type="pcre2" offset="after_parent">rspamd_task_write_log:</prematch>
+  <regex type="pcre2" offset="after_prematch">^ id:\s*\x3c[^\x3e]*\x3e,\s*qid:\s*\x3c([^\x3e]+)\x3e,\s*ip:\s*([^,]+),\s*from:\s*\x3c([^\x3e]*)\x3e,\s*\(default:\s+\S+\s+\(([^)]+)\):\s+\[(-?[0-9.]+)/(-?[0-9.]+)\]</regex>
+  <order>rspamd.queue_id,srcip,rspamd.mail_from,action,rspamd.score,rspamd.required_score</order>
+</decoder>

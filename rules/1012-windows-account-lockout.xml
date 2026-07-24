@@ -1,0 +1,49 @@
+<!--
+======================================================================
+Wazuh Security Framework - Windows Authentication
+
+Module:
+    Account Lockout
+
+Windows events:
+    4740 - A user account was locked out
+
+Standard Wazuh dependency:
+    60115 - User account locked out
+
+Custom rule range:
+    101200-101299
+
+Version:
+    1.0
+======================================================================
+-->
+
+<group name="windows,windows_security,authentication,account_lockout,">
+
+    <!--
+    Authoritative Windows event indicating that an account
+    has actually been locked out.
+
+    Event 4771 with status 0x12 is not used for this notification,
+    because it may repeat whenever authentication is attempted
+    with an already locked, disabled, or revoked account.
+    -->
+
+<rule id="101200" level="9">
+    <if_sid>60115</if_sid>
+    <field name="win.system.eventID">^4740$</field>
+
+    <description>Windows user account locked out: $(win.eventdata.targetUserName)</description>
+
+    <options>alert_by_email</options>
+
+    <group>authentication_failures,operational_authentication_issue,account_locked,</group>
+
+    <mitre>
+        <id>T1110</id>
+        <id>T1531</id>
+    </mitre>
+</rule>
+
+</group>

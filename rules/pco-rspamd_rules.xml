@@ -1,0 +1,44 @@
+<group name="pco,rspamd,mail_security,">
+
+  <!-- Základní pravidlo, pouze rodič pro klasifikaci -->
+  <rule id="100550" level="0">
+    <decoded_as>pco-rspamd</decoded_as>
+    <description>PCO Rspamd: Message scan result</description>
+  </rule>
+
+  <!-- Běžně doručená zpráva -->
+  <rule id="100551" level="3">
+    <if_sid>100550</if_sid>
+    <action type="pcre2">^no action$</action>
+    <description>PCO Rspamd: Message accepted</description>
+  </rule>
+
+  <!-- Zpráva doručená s označením spamu -->
+  <rule id="100552" level="5">
+    <if_sid>100550</if_sid>
+    <action type="pcre2">^add header$</action>
+    <description>PCO Rspamd: Spam header added</description>
+  </rule>
+
+  <!-- Dočasně odložená zpráva -->
+  <rule id="100553" level="6">
+    <if_sid>100550</if_sid>
+    <action type="pcre2">^greylist$</action>
+    <description>PCO Rspamd: Message greylisted</description>
+  </rule>
+
+  <!-- Dočasně odmítnutá zpráva -->
+  <rule id="100554" level="8">
+    <if_sid>100550</if_sid>
+    <action type="pcre2">^soft reject$</action>
+    <description>PCO Rspamd: Message temporarily rejected</description>
+  </rule>
+
+  <!-- Definitivně odmítnutá zpráva -->
+  <rule id="100555" level="10">
+    <if_sid>100550</if_sid>
+    <action type="pcre2">^reject$</action>
+    <description>PCO Rspamd: Message rejected</description>
+  </rule>
+
+</group>

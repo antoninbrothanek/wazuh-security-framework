@@ -1,0 +1,147 @@
+<group name="pco,shorewall,firewall,">
+
+  <!-- ========================================================= -->
+  <!-- Internet -> Firewall                                      -->
+  <!-- ========================================================= -->
+
+  <rule id="100500" level="6">
+    <if_sid>5100</if_sid>
+    <match>net-fw DROP</match>
+    <description>PCO Shorewall: Internet to firewall DROP</description>
+    <group>pco,shorewall,firewall,drop,</group>
+  </rule>
+
+  <rule id="100501" level="3">
+    <if_sid>5100</if_sid>
+    <match>net-fw ACCEPT</match>
+    <description>PCO Shorewall: Internet to firewall ACCEPT</description>
+    <group>pco,shorewall,firewall,accept,</group>
+  </rule>
+
+  <!-- ========================================================= -->
+  <!-- Firewall -> Internet                                      -->
+  <!-- ========================================================= -->
+
+  <rule id="100502" level="5">
+    <if_sid>5100</if_sid>
+    <match>fw-net ACCEPT</match>
+    <description>PCO Shorewall: Firewall to Internet ACCEPT</description>
+    <group>pco,shorewall,firewall,accept,</group>
+  </rule>
+
+  <rule id="100503" level="7">
+    <if_sid>5100</if_sid>
+    <match>fw-net DROP</match>
+    <description>PCO Shorewall: Firewall to Internet DROP</description>
+    <group>pco,shorewall,firewall,drop,</group>
+  </rule>
+
+  <!-- ========================================================= -->
+  <!-- Local -> Firewall                                         -->
+  <!-- ========================================================= -->
+
+  <rule id="100504" level="4">
+    <if_sid>5100</if_sid>
+    <match>loc-fw ACCEPT</match>
+    <description>PCO Shorewall: Local network to firewall ACCEPT</description>
+    <group>pco,shorewall,firewall,accept,</group>
+  </rule>
+
+  <rule id="100505" level="6">
+    <if_sid>5100</if_sid>
+    <match>loc-fw DROP</match>
+    <description>PCO Shorewall: Local network to firewall DROP</description>
+    <group>pco,shorewall,firewall,drop,</group>
+  </rule>
+
+  <!-- ========================================================= -->
+  <!-- Local -> Internet                                         -->
+  <!-- ========================================================= -->
+
+  <rule id="100506" level="3">
+    <if_sid>5100</if_sid>
+    <match>loc-net ACCEPT</match>
+    <description>PCO Shorewall: Local network to Internet ACCEPT</description>
+    <group>pco,shorewall,firewall,accept,</group>
+  </rule>
+
+  <rule id="100507" level="6">
+    <if_sid>5100</if_sid>
+    <match>loc-net DROP</match>
+    <description>PCO Shorewall: Local network to Internet DROP</description>
+    <group>pco,shorewall,firewall,drop,</group>
+  </rule>
+
+  <!-- ========================================================= -->
+  <!-- Correlation: repeated Internet -> Firewall drops          -->
+  <!-- ========================================================= -->
+
+  <rule id="100510"
+        level="8"
+        frequency="10"
+        timeframe="60"
+        ignore="120">
+
+    <if_matched_sid>100500</if_matched_sid>
+    <same_srcip />
+
+    <description>PCO Firewall: Suspicious host $(srcip) - 10 drops in 60 seconds</description>
+    <group>pco,shorewall,firewall,correlation,suspicious_host,</group>
+  </rule>
+
+  <!-- ========================================================= -->
+  <!-- Correlation: possible TCP/UDP port scan                   -->
+  <!-- ========================================================= -->
+
+  <rule id="100520"
+        level="10"
+        frequency="5"
+        timeframe="120"
+        ignore="3600">
+
+
+
+    <if_matched_sid>100500</if_matched_sid>
+    <same_srcip />
+    <different_dstport />
+
+    <description>PCO Firewall: Possible port scan from $(srcip)</description>
+    <options>alert_by_email</options>
+    <group>pco,shorewall,firewall,correlation,port_scan,</group>
+  </rule>
+
+  <!-- ========================================================= -->
+  <!-- SSH                                                       -->
+  <!-- ========================================================= -->
+
+  <!--
+    Jednotlivý zahozený pokus o spojení na přesný TCP port 22.
+
+    PCRE2 kotvy ^ a $ zajišťují, že pravidlo neodpovídá portům
+    obsahujícím číslo 22, například 22080, 18822 nebo 22774.
+  -->
+
+  <rule id="100530" level="7">
+    <if_sid>100500</if_sid>
+    <protocol type="pcre2">^TCP$</protocol>
+    <dstport type="pcre2">^22$</dstport>
+
+    <description>PCO Firewall: SSH connection attempt dropped from $(srcip)</description>
+    <group>pco,shorewall,firewall,ssh,drop,</group>
+  </rule>
+
+  <!--
+    Pět zahozených pokusů stejné zdrojové IP na SSH
+    během 120 sekund. Po vyvolání alertu následuje
+    600 sekund bez dalšího alertu tohoto pravidla.
+  -->
+  <rule id="100531" level="12" frequency="5" timeframe="120" ignore="600">
+    <if_matched_sid>100530</if_matched_sid>
+    <same_srcip />
+
+    <description>PCO Firewall: SSH brute force detected from $(srcip)</description>
+    <options>alert_by_email</options>
+    <group>pco,shorewall,firewall,ssh,bruteforce,attack,</group>
+  </rule>
+
+</group>

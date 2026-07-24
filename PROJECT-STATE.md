@@ -131,6 +131,7 @@ Implemented rules:
 | Wazuh rule | Windows Event ID | Meaning | Status |
 |---|---:|---|---|
 | 102100 | 4724 | Administrator reset user password | TESTED |
+| 102101 | 4723 | User changed own password | TESTED |
 
 Confirmed production test:
 
@@ -141,7 +142,15 @@ Example:
 Windows user password reset: wazuh4738 by Administrator
 
 Email alerting is enabled.
+--------------------------
 
+Event 4723 was received from SERVER01 and matched rule 102101.
+
+Example:
+
+Windows user changed own password: wazuh4738
+
+Email alerting is disabled for normal user password changes.
 ---
 
 # Current work

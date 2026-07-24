@@ -153,6 +153,21 @@ Windows user changed own password: wazuh4738
 Email alerting is disabled for normal user password changes.
 ---
 
+# Windows Group Membership
+
+Tested stock Wazuh rules:
+
+| Windows Event ID | Wazuh rule | Meaning | Status |
+|---|---:|---|---|
+| 4728 | 60141 | Global security group member added | TESTED - STOCK |
+| 4729 | 60142 | Global security group member removed | TESTED - STOCK |
+| 4732 | 60144 | Local security group member added | TESTED - STOCK |
+| 4733 | 60145 | Local security group member removed | TESTED - STOCK |
+| 4756 | 60151 | Universal security group member added | TESTED - STOCK |
+| 4757 | 60152 | Universal security group member removed | TESTED - STOCK |
+
+No custom rules are required for these events.
+
 # Current work
 
 Continue Windows account/password management rules.

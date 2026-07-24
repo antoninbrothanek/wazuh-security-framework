@@ -168,9 +168,55 @@ Tested stock Wazuh rules:
 
 No custom rules are required for these events.
 
+# Windows Privileged Group Management
+
+File:
+
+rules/1022-windows-privileged-groups.xml
+
+Policy:
+
+Adding a member to a monitored privileged group generates a level 12 alert and immediate email notification.
+
+Removing a member remains handled by the stock Wazuh rules.
+
+Custom rules:
+
+| Wazuh rule | Group | Event | Status |
+|---|---|---:|---|
+| 102200 | Account Operators | 4732 | TESTED |
+| 102201 | Server Operators | 4732 | TESTED |
+| 102202 | Print Operators | 4732 | IMPLEMENTED |
+| 102203 | Replicator | 4732 | IMPLEMENTED |
+| 102204 | Key Admins | 4728 | TESTED |
+| 102205 | Enterprise Key Admins | 4756 | TESTED |
+| 102206 | Organization Management | 4756 | TESTED |
+| 102207 | Exchange Trusted Subsystem | 4756 | TESTED |
+
+Confirmed alert properties:
+
+- level: 12
+- mail: true
+- member name included
+- administrator performing the change included
+
+Stock Wazuh level 12 rules are used where already sufficient, including:
+
+- Administrators
+- Domain Admins
+- Domain Controllers
+- Schema Admins
+- Enterprise Admins
+- Backup Operators
+
+No duplicate custom rules are created for these groups.
+
 # Current work
 
-Continue Windows account/password management rules.
+Current module: Windows Privileged Group Management completed.
+
+Next Windows Security module has not yet been started.
+
 
 Before adding another rule:
 

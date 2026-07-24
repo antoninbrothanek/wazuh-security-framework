@@ -1,0 +1,91 @@
+<group name="windows,windows_security,privileged_group_management,">
+
+  <!-- Account Operators - ADD only -->
+  <rule id="102200" level="12">
+    <if_sid>60173</if_sid>
+    <field name="win.system.eventID">^4732$</field>
+
+    <description>CRITICAL: Member added to privileged group Account Operators: $(win.eventdata.memberName) by $(win.eventdata.subjectUserName)</description>
+
+    <options>alert_by_email</options>
+    <group>privileged_group_change,privilege_escalation,operational_action_required,</group>
+  </rule>
+
+  <!-- Server Operators - ADD only -->
+  <rule id="102201" level="12">
+    <if_sid>60174</if_sid>
+    <field name="win.system.eventID">^4732$</field>
+
+    <description>CRITICAL: Member added to privileged group Server Operators: $(win.eventdata.memberName) by $(win.eventdata.subjectUserName)</description>
+
+    <options>alert_by_email</options>
+    <group>privileged_group_change,privilege_escalation,operational_action_required,</group>
+  </rule>
+
+  <!-- Print Operators - ADD only -->
+  <rule id="102202" level="12">
+    <if_sid>60175</if_sid>
+    <field name="win.system.eventID">^4732$</field>
+
+    <description>CRITICAL: Member added to privileged group Print Operators: $(win.eventdata.memberName) by $(win.eventdata.subjectUserName)</description>
+
+    <options>alert_by_email</options>
+    <group>privileged_group_change,privilege_escalation,operational_action_required,</group>
+  </rule>
+
+  <!-- Replicator - ADD only -->
+  <rule id="102203" level="12">
+    <if_sid>60177</if_sid>
+    <field name="win.system.eventID">^4732$</field>
+
+    <description>CRITICAL: Member added to privileged group Replicator: $(win.eventdata.memberName) by $(win.eventdata.subjectUserName)</description>
+
+    <options>alert_by_email</options>
+    <group>privileged_group_change,privilege_escalation,operational_action_required,</group>
+  </rule>
+
+  <!-- Key Admins - Global group, RID 526 -->
+  <rule id="102204" level="12">
+    <if_sid>60141</if_sid>
+    <field name="win.eventdata.targetSid">^S-1-5-\S+-526$</field>
+
+    <description>CRITICAL: Member added to privileged group Key Admins: $(win.eventdata.memberName) by $(win.eventdata.subjectUserName)</description>
+
+    <options>alert_by_email</options>
+    <group>privileged_group_change,privilege_escalation,operational_action_required,</group>
+  </rule>
+
+  <!-- Enterprise Key Admins - Universal group, RID 527 -->
+  <rule id="102205" level="12">
+    <if_sid>60151</if_sid>
+    <field name="win.eventdata.targetSid">^S-1-5-\S+-527$</field>
+
+    <description>CRITICAL: Member added to privileged group Enterprise Key Admins: $(win.eventdata.memberName) by $(win.eventdata.subjectUserName)</description>
+
+    <options>alert_by_email</options>
+    <group>privileged_group_change,privilege_escalation,operational_action_required,</group>
+  </rule>
+
+  <!-- Exchange Organization Management -->
+  <rule id="102206" level="12">
+    <if_sid>60151</if_sid>
+    <field name="win.eventdata.targetUserName">^Organization Management$</field>
+
+    <description>CRITICAL: Member added to privileged Exchange group Organization Management: $(win.eventdata.memberName) by $(win.eventdata.subjectUserName)</description>
+
+    <options>alert_by_email</options>
+    <group>privileged_group_change,privilege_escalation,exchange_privileged_group,operational_action_required,</group>
+  </rule>
+
+  <!-- Exchange Trusted Subsystem -->
+  <rule id="102207" level="12">
+    <if_sid>60151</if_sid>
+    <field name="win.eventdata.targetUserName">^Exchange Trusted Subsystem$</field>
+
+    <description>CRITICAL: Member added to privileged Exchange group Exchange Trusted Subsystem: $(win.eventdata.memberName) by $(win.eventdata.subjectUserName)</description>
+
+    <options>alert_by_email</options>
+    <group>privileged_group_change,privilege_escalation,exchange_privileged_group,operational_action_required,</group>
+  </rule>
+
+</group>

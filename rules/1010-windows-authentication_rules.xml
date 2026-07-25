@@ -1,26 +1,61 @@
 <group name="windows,windows_authentication,">
 
-  <!-- Event 4625: correct username, incorrect password -->
-  <rule id="101000" level="1">
+  <!-- Event 4625: Existing user, incorrect password -->
+  <rule id="101000" level="5">
     <if_sid>60122</if_sid>
-    <field name="win.system.eventID">^4625$</field>
     <field name="win.eventdata.status">^0xc000006d$</field>
     <field name="win.eventdata.subStatus">^0xc000006a$</field>
-    <field name="win.eventdata.targetUserName">.+</field>
-<field name="win.eventdata.ipAddress">.+</field>
-    <description>Windows logon failed because of an incorrect password.</description>
+
+    <description>Windows logon failed because of an incorrect password for user $(win.eventdata.targetUserName) from $(win.eventdata.ipAddress).</description>
+
     <options>no_full_log</options>
-    <group>authentication_failed,bad_password,</group>
+
+    <group>
+      authentication_failed,
+      bad_password,
+      windows_authentication,
+    </group>
   </rule>
 
-  <!-- Repeated incorrect password for the same account and source IP -->
-  <rule id="101001" level="4" frequency="3" timeframe="300" ignore="300">
-  <if_matched_sid>101000</if_matched_sid>
+  <!-- Multiple incorrect passwords from the same source -->
+  <rule id="101001"
+        level="8"
+        frequency="3"
+        timeframe="300"
+        ignore="300">
+
+    <if_matched_sid>101000</if_matched_sid>
+
     <same_field>win.eventdata.targetUserName</same_field>
     <same_field>win.eventdata.ipAddress</same_field>
+
     <description>Possible stored invalid credentials: repeated incorrect password for account $(win.eventdata.targetUserName) from source $(win.eventdata.ipAddress).</description>
+
     <options>no_full_log</options>
-    <group>authentication_failed,operational_authentication_issue,</group>
+
+    <group>
+      authentication_failed,
+      operational_authentication_issue,
+      windows_authentication,
+    </group>
+  </rule>
+
+  <!-- Event 4625: Unknown username -->
+  <rule id="101002" level="5">
+    <if_sid>60122</if_sid>
+
+    <field name="win.eventdata.status">^0xc000006d$</field>
+    <field name="win.eventdata.subStatus">^0xc0000064$</field>
+
+    <description>Windows logon failed because the username does not exist: $(win.eventdata.targetUserName) from $(win.eventdata.ipAddress).</description>
+
+    <options>no_full_log</options>
+
+    <group>
+      authentication_failed,
+      unknown_user,
+      windows_authentication,
+    </group>
   </rule>
 
 </group>

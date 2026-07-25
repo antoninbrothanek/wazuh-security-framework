@@ -1,7 +1,7 @@
 # Windows Authentication Matrix
 
 Version: 0.2.0  
-Status: In development - synchronized with current tested state
+Status: In development - event-analysis baseline synchronized with current tested state
 
 ## Purpose
 
@@ -29,10 +29,10 @@ Standard Wazuh rule IDs, levels, descriptions, decoder availability, and local r
 
 ## Status model
 
-- **TESTED** - confirmed with a real Windows event received and processed by Wazuh.
-- **PARTIALLY TESTED** - some scenarios are confirmed, but the event family is not fully classified.
-- **IDENTIFIED** - expected stock Wazuh coverage has been located, but target production behavior still needs validation.
-- **ANALYSIS REQUIRED** - event behavior and/or stock coverage must be investigated before implementation.
+- **TESTED** - confirmed with a real Windows event and, where applicable, real Wazuh processing.
+- **PARTIALLY TESTED** - Windows behavior is confirmed but target-manager Wazuh handling still needs final verification.
+- **IDENTIFIED** - expected stock Wazuh coverage has been located, but target behavior still needs validation.
+- **INTENTIONALLY EXCLUDED** - investigated and excluded from the current baseline because no useful standalone detection requirement exists.
 
 ---
 
@@ -41,12 +41,13 @@ Standard Wazuh rule IDs, levels, descriptions, decoder availability, and local r
 | Scenario | Windows Event ID | Standard Wazuh SID | Standard level | Custom rule(s) | Current status | Dashboard | Email policy |
 |---|---:|---:|---:|---|---|---|---|
 | Successful logon | 4624 | 60106 | 3 | None | TESTED | Yes | No |
-| Failed logon | 4625 | 60105 / 60122 | 5 | 101000 TESTED, 101001 TESTED, 101002 validation pending | PARTIALLY TESTED - incorrect-password classification and same-account/source correlation verified | Yes | Correlated/high-risk cases only |
-| User logoff | 4634 | 60137 | 3 | None | IDENTIFIED - real-event validation pending | No | No |
-| Explicit credentials used | 4648 | Not found during initial analysis | — | Not yet implemented | ANALYSIS REQUIRED | Yes | Selected high-risk cases only |
-| Special privileges assigned | 4672 | 67028 in WEF baseline | 3 | None currently | IDENTIFIED - verify rule is loaded and suitable on target Wazuh | Yes | Selected cases only |
-| Account lockout | 4740 | 60115 | 9 | 101200 | TESTED | Yes | Yes - immediate operational/security notification |
-| Kerberos pre-authentication failure | 4771 | Base handling via Windows Security rules | varies | 101100, 101101, 101102, 101110 | TESTED for implemented 0x18 / 0x12 / repeated-failure scenarios | Planned in Kerberos milestone | Email for correlated password attack |
+| Failed logon | 4625 | 60105 / 60122 | 5 | 101000, 101001, 101002 | TESTED for implemented classifications/correlation | Yes | Correlated/high-risk cases only |
+| User logoff | 4634 | 60137 identified | 3 | None | INTENTIONALLY EXCLUDED from v0.2.0 detection baseline | No | No |
+| Explicit credentials used | 4648 | Stock coverage to re-check on target manager | — | None approved | PARTIALLY TESTED - real Windows behavior validated | Yes, if retained | Selected high-risk cases only |
+| Special privileges assigned | 4672 | 67028 identified in WEF baseline | 3 | None | PARTIALLY TESTED - real Windows behavior/correlation validated; Wazuh target validation pending | Yes, as enrichment | No generic email |
+| Account lockout | 4740 | 60115 | 9 | 101200 | TESTED | Yes | Yes |
+| Kerberos pre-authentication failure | 4771 | Windows Security handling + custom rules | varies | 101100, 101101, 101102, 101110 | TESTED for implemented scenarios | Planned | Correlated password attack: Yes |
+| NTLM credential validation | 4776 | Standard Windows/Wazuh telemetry | varies | None approved | OBSERVED during controlled NTLM failures | Optional telemetry | No generic email |
 
 ---
 
@@ -56,16 +57,15 @@ Standard Wazuh rule IDs, levels, descriptions, decoder availability, and local r
 
 Status: **TESTED**
 
-Production validation on `SERVER01` confirmed:
+Production validation confirmed:
 
 - Windows Event ID 4624 is generated normally.
 - Wazuh receives and decodes the event using `windows_eventchannel`.
 - Stock Wazuh rule `60106` matches the event.
 - Stock rule level is 3.
-- `mail` is false.
 - No generic custom rule is required.
 
-Relevant decoded fields confirmed in production include:
+Relevant decoded fields include:
 
 - `win.eventdata.targetUserName`
 - `win.eventdata.targetDomainName`
@@ -77,155 +77,167 @@ Relevant decoded fields confirmed in production include:
 - `win.eventdata.ipPort`
 - `win.eventdata.elevatedToken`
 
-Observed legitimate production examples included:
+Event 4624 is high-volume authentication telemetry. Ordinary successful logons are retained for investigation, correlation, and dashboards and do not generate email.
 
-- service/system logons,
-- machine-account network logons,
-- normal user network logons,
-- Kerberos authentication,
-- NTLM authentication,
-- Exchange HealthMailbox activity.
-
-Event 4624 is high-volume authentication telemetry. Ordinary successful logons are retained for investigation, correlation, and dashboard analysis and do not generate email.
-
-No generic custom 4624 alert is approved.
-
-Targeted detections may later use 4624 as input only when a concrete security scenario is separately validated and documented. Investigation topics include:
-
-- RDP / RemoteInteractive logon,
-- privileged-account logon,
-- NTLM usage,
-- unusual source workstation or IP address,
-- successful logon following repeated failures.
-
-Important production exception:
-
-Exchange HealthMailbox accounts generate legitimate Event 4624 activity, including **Logon Type 8**. Therefore Logon Type 8 alone must **not** be classified as malicious and must not generate a high-severity email alert without additional context.
+Exchange HealthMailbox activity is a known legitimate source of unusual-looking logon patterns, including Logon Type 8. Logon type alone must not determine maliciousness.
 
 ### 4625 - Failed logon
 
-Status: **PARTIALLY TESTED**
+Status: **TESTED for implemented v0.2.0 classifications and correlation**
 
-Stock Wazuh processing has been verified on `SERVER01`:
+Verified Wazuh processing:
 
-- `60104` classifies Windows audit failures.
 - `60105` classifies Event 4625 as Windows Logon Failure.
 - `60122` produces the observed level 5 generic alert `Logon Failure - Unknown user or bad password`.
-- The Windows EventChannel decoder exposes `status`, `subStatus`, username, source IP, workstation, logon type, and authentication package for classification and correlation.
+- The EventChannel decoder exposes `status`, `subStatus`, username, source IP, workstation, logon type, and authentication package.
 
-Real production and controlled-test observations:
+Verified/observed combinations:
 
-| Status | SubStatus | Observed meaning | Validation |
+| Status | SubStatus | Meaning / context | Validation |
 |---|---|---|---|
-| `0xc000006d` | `0xc0000064` | Username does not exist | CONTROLLED WINDOWS EVENT OBSERVED - `WazuhNoSuchUser`, NTLM, Logon Type 3; custom 101002 post-fix validation pending |
-| `0xc000006d` | `0xc000006a` | Existing account, incorrect password | CONTROLLED TEST - `wazuh4738`, NTLM, Logon Type 3; custom 101000 TESTED |
+| `0xc000006d` | `0xc0000064` | Username does not exist | CONTROLLED TEST; custom 101002 TESTED |
+| `0xc000006d` | `0xc000006a` | Existing account, incorrect password | CONTROLLED TEST; custom 101000 TESTED |
 | `0xc000006e` | `0xc0000071` | Password expired | OBSERVED IN PRODUCTION |
-| `0xc000006e` | `0xc0000072` | Account disabled | OBSERVED IN PRODUCTION; sample generated locally by `MSExchangeMailboxAssistants.exe` with an empty target username |
-| `0xc000035b` | `0x0` | NTLM/SSPI failure requiring contextual interpretation | OBSERVED IN PRODUCTION - do not classify automatically as an attack |
+| `0xc000006e` | `0xc0000072` | Account disabled | OBSERVED IN PRODUCTION; legitimate local-service context possible |
+| `0xc000035b` | `0x0` | NTLM/SSPI failure requiring context | OBSERVED IN PRODUCTION |
 
-The disabled-account sample is an important false-positive warning: Event 4625 can be generated by a legitimate local application/service process. `status/subStatus` alone is therefore not sufficient to assign security severity.
+Current custom rules in `rules/1010-windows-authentication_rules.xml`:
 
-Current custom rules in `rules/1010-windows-authentication_rules.xml` include:
+- `101000` - incorrect-password classification; TESTED.
+- `101001` - repeated incorrect-password correlation for same account/source; TESTED.
+- `101002` - nonexistent-username classification; TESTED.
 
-- `101000` - classification for Event 4625 with correct username and incorrect password (`status 0xc000006d`, `subStatus 0xc000006a`); TESTED.
-- `101001` - correlation for repeated `101000` events against the same account from the same source IP; TESTED.
-- `101002` - classification for Event 4625 where the username does not exist (`status 0xc000006d`, `subStatus 0xc0000064`); implemented, post-fix validation pending.
+Controlled testing on 2026-07-25 confirmed:
 
-Controlled real-event testing on 2026-07-25 confirmed:
+- `101000` matched a real 4625 with `status=0xc000006d`, `subStatus=0xc000006a`.
+- three matching events within 300 seconds triggered `101001` at level 8.
+- the sequence generated Event 4740 and matched `101200`.
+- `WazuhNoSuchUser` generated Event 4625 with `status=0xc000006d`, `subStatus=0xc0000064`, NTLM, Logon Type 3, workstation `TERMINAL2`, source `192.168.150.140`.
+- that event matched `101002` at level 5 with the expected username and source IP in the alert description.
+- Event 4776 was observed in parallel during NTLM failures with statuses including `0xc000006a` and `0xc0000234`.
 
-- a real 4625 record reached stock rule `60122` and then matched custom rule `101000`;
-- rule 101000 produced level 5 with username `wazuh4738` and source IP `192.168.150.140` in the description;
-- three matching 101000 events within the configured 300-second window for the same username and source IP triggered rule `101001`;
-- rule 101001 produced the expected level 8 correlation alert;
-- the controlled sequence later generated Event 4740, which matched rule `101200`;
-- Event 4776 was observed alongside the same NTLM authentication attempts with statuses `0xc000006a` and `0xc0000234`; this observation did not add or approve a new 4776 rule.
-
-The earlier 101000 failure was caused by unnecessary field-presence checks using `.+`. Those checks did not behave as intended in the Wazuh rule expression context. Removing them allowed the status/subStatus match to work. Temporary diagnostic rule 101099 confirmed chaining from stock rule 60122 and was removed after the test.
-
-Therefore:
-
-- stock 4625 detection is working,
-- custom rule 101000 is validated,
-- correlation rule 101001 is validated,
-- custom rule 101002 remains implemented but must not be marked TESTED until a new controlled nonexistent-username event matches it,
-- routine individual 4625 failures do not generate email.
-
-The next 4625 task is the focused validation of 101002, not expansion of the failure-code taxonomy.
+The previous matching problem in 101000/101002 was caused by unnecessary `.+` field-presence checks. Removing them restored the intended status/subStatus classification behavior.
 
 ### 4634 - User logoff
 
-Standard rule `60137` has been identified.
+Status: **INTENTIONALLY EXCLUDED from the v0.2.0 detection baseline**
 
-Expected policy:
+Stock rule `60137` is known, but a controlled session-close check did not produce a useful Event 4634 sample for the tested session.
 
-- retain only if useful for investigation/session context,
+Decision:
+
+- no custom rule,
 - no routine email,
-- no custom rule unless real testing demonstrates a requirement.
-
-Real-event validation is still pending.
+- no further testing required for v0.2.0,
+- revisit only if a future concrete session-correlation requirement depends on it.
 
 ### 4648 - Explicit credentials used
 
-Windows Event ID 4648 was not found in the initially inspected standard ruleset.
+Status: **PARTIALLY TESTED**
 
-This does **not** yet mean that a custom rule must be created automatically.
+Controlled Windows testing on `TERMINAL2` confirmed that Event 4648 contains security-relevant context not present in a generic 4624 alone.
 
-Required sequence:
+Observed controlled examples:
 
-1. Generate and inspect a real 4648 event.
-2. Verify that Wazuh receives and decodes it.
-3. Re-check the loaded stock ruleset on the target manager.
-4. Define which 4648 scenarios are security-relevant.
-5. Add a custom rule only if stock coverage is insufficient.
+1. Explicit local credential use:
+   - `SubjectUser=kerberos01`
+   - `TargetUser=administrator`
+   - `TargetServer=localhost`
+   - process context via `svchost.exe`
 
-Email is reserved for documented high-risk cases, not for every 4648 event.
+2. Explicit credentials used against SMB target:
+   - `SubjectUser=kerberos01`
+   - `TargetUser=administrator`
+   - `TargetServer=server01`
+   - `IpAddress=192.168.150.2`
+   - `IpPort=445`
+
+3. Legitimate UAC/elevation noise:
+   - `SubjectUser=TERMINAL2$`
+   - `TargetUser=Administrator`
+   - `TargetServer=localhost`
+   - `Process=consent.exe`
+
+Decision:
+
+- Event 4648 has unique detection/enrichment value for explicit credential use and possible lateral movement.
+- Do **not** alert on every 4648 event.
+- Candidate high-value conditions include `SubjectUser != TargetUser`, non-local target, remote service ports, privileged target accounts, and correlation with later activity.
+- No generic custom rule is approved before target-manager Wazuh handling/stock coverage is verified.
 
 ### 4672 - Special privileges assigned
 
-Rule `67028` was identified in `0955-WEF-baseline_rules.xml`.
+Status: **PARTIALLY TESTED**
 
-Before relying on it, the framework must verify on the target Wazuh manager:
+Controlled testing on `TERMINAL2` with `PCO\administrator` produced Event 4672 with sensitive privileges including:
 
-- that the ruleset file is loaded,
-- that rule 67028 is enabled,
-- that a real 4672 event matches it,
-- that its level and context are suitable.
+- `SeSecurityPrivilege`
+- `SeTakeOwnershipPrivilege`
+- `SeLoadDriverPrivilege`
+- `SeBackupPrivilege`
+- `SeRestorePrivilege`
+- `SeDebugPrivilege`
+- `SeSystemEnvironmentPrivilege`
+- `SeImpersonatePrivilege`
+- `SeDelegateSessionUserImpersonatePrivilege`
 
-No custom rule is approved before this validation.
+The Event 4672 `SubjectLogonId=0x364a5812` matched the related Event 4624 `TargetLogonId=0x364a5812` for the same administrator logon.
+
+This experimentally confirms the intended relationship:
+
+`4624 successful logon -> same Logon ID -> 4672 sensitive privileges assigned`
+
+Decision:
+
+- 4672 is useful primarily as correlation/enrichment for a privileged logon.
+- It is not a generic standalone alert because legitimate administrator and SYSTEM sessions generate it normally.
+- Rule `67028` has been identified in the WEF baseline; target-manager loading and suitability still require verification before relying on it.
 
 ### 4740 - Account lockout
 
-Standard rule `60115` detects account lockout.
+Status: **TESTED**
 
-Custom rule `101200` in `rules/1012-windows-account-lockout.xml` is the framework notification rule:
+Custom rule `101200` in `rules/1012-windows-account-lockout.xml` is the authoritative framework notification rule:
 
 - Event ID 4740,
 - level 9,
 - `alert_by_email`,
 - description includes the locked username.
 
-This rule has been confirmed with a real production lockout event and again during the controlled 4625 correlation test.
-
-Event 4771 status `0x12` is not used as the authoritative lockout notification because it can repeat for subsequent authentication attempts against an already locked, disabled, or revoked account.
+It has been confirmed with production and controlled events.
 
 ### 4771 - Kerberos pre-authentication failure
 
-Kerberos is tracked as its own roadmap milestone, but its implemented rules are listed here because they are part of the overall authentication chain.
+Status: **TESTED for implemented scenarios**
 
 Current rules in `rules/1011-windows-kerberos-4771.xml`:
 
 - `101100` - internal Event 4771 base rule.
 - `101101` - status `0x18`, invalid password / stale credentials.
-- `101102` - account locked or revoked / status `0x12`.
-- `101110` - repeated invalid-password correlation for the same account and source; level 10; email enabled.
+- `101102` - locked/revoked-account scenario, status `0x12`.
+- `101110` - repeated invalid-password correlation; level 10; email enabled.
 
-These implemented scenarios have been tested. Additional Kerberos failure codes remain a later Kerberos-scope review and must not be added while the current Windows Authentication baseline is being closed.
+Controlled testing established that a failed Kerberos authentication with an intentionally wrong password generated Event 4771 without a corresponding 4625 in that scenario. Therefore 4771 is not redundant with 4625 and has independent Kerberos detection value.
+
+### 4776 - NTLM credential validation
+
+Status: **OBSERVED / TELEMETRY**
+
+Controlled NTLM testing showed 4776 alongside failed NTLM authentication activity, including:
+
+- `0xc000006a` - bad password,
+- `0xc0000064` - unknown user,
+- `0xc0000234` - locked account.
+
+Decision:
+
+- 4776 is NTLM-specific credential-validation telemetry.
+- It is not treated as a duplicate of Kerberos 4771.
+- No new generic custom 4776 rule is approved in v0.2.0 because the current 4625/4740 logic already covers the required failure/lockout detections.
 
 ---
 
 ## Notification policy
-
-Current policy for Windows Authentication:
 
 | Category | Email |
 |---|---|
@@ -234,8 +246,9 @@ Current policy for Windows Authentication:
 | Repeated/correlated authentication attack | Yes when explicitly configured |
 | Account lockout | Yes |
 | Ordinary logoff | No |
-| Explicit credential use | Only selected high-risk scenarios after analysis |
-| Special privilege assignment | Only selected scenarios after validation |
+| Explicit credential use | Only selected high-risk scenarios after target-manager validation |
+| Special privilege assignment | No generic email; use only as correlation/enrichment |
+| NTLM credential validation | No generic email |
 
 The global Wazuh email threshold does not replace per-rule policy. Critical or operationally actionable custom rules may explicitly use `<options>alert_by_email</options>`.
 
@@ -253,10 +266,8 @@ Expected baseline inputs:
 - failed logons,
 - correlated failed-authentication scenarios,
 - account lockouts,
-- explicit-credential events if retained,
-- privileged-logon/special-privilege events if retained.
-
-Dashboard scope must not be expanded before event-classification decisions are complete.
+- explicit-credential events if target-manager validation confirms useful collection,
+- privileged-logon enrichment if target-manager validation confirms useful collection.
 
 ---
 
@@ -278,16 +289,12 @@ Deployment must stop if required dependencies are missing or differ materially f
 
 ## Remaining work for Windows Authentication v0.2.0
 
-Work must proceed in this order:
-
-1. **4625** - validate custom rule `101002` with a new controlled nonexistent-username event.
-2. **4634** - validate stock logoff behavior.
-3. **4648** - analyze real explicit-credential events and stock coverage.
-4. **4672** - validate real event and standard rule 67028.
-5. Update this matrix after each verified result.
-6. Implement and validate the Windows Authentication dashboard.
-7. Review notification policy and documentation.
-8. Mark v0.2.0 complete only when all baseline scenarios have an explicit tested or intentionally excluded disposition.
+1. Synchronize the Git repository state with `server07`.
+2. Verify Wazuh receipt/stock handling for Events 4648 and 4672 on the target manager.
+3. Add no custom 4648/4672 rule unless that verification demonstrates a specific gap and a documented detection requirement.
+4. Implement and validate the Windows Authentication dashboard.
+5. Review notification policy and final documentation.
+6. Mark v0.2.0 complete after integration/dashboard completion criteria are satisfied.
 
 ---
 
@@ -295,7 +302,7 @@ Work must proceed in this order:
 
 For every new authentication scenario:
 
-1. Verify the Windows event exists.
+1. Verify the Windows event exists in the Windows Security Event Log.
 2. Verify Wazuh receives the event.
 3. Check the loaded stock Wazuh rules.
 4. Define the purpose and notification policy.

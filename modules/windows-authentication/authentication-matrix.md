@@ -41,7 +41,7 @@ Standard Wazuh rule IDs, levels, descriptions, decoder availability, and local r
 | Scenario | Windows Event ID | Standard Wazuh SID | Standard level | Custom rule(s) | Current status | Dashboard | Email policy |
 |---|---:|---:|---:|---|---|---|---|
 | Successful logon | 4624 | 60106 | 3 | None | TESTED | Yes | No |
-| Failed logon | 4625 | 60105 / 60122 | 5 | 101000, 101001, 101002 present but not validated | PARTIALLY TESTED - stock behavior and several status/subStatus cases verified; custom 101000/101002 currently do not fire | Yes | Correlated/high-risk cases only |
+| Failed logon | 4625 | 60105 / 60122 | 5 | 101000 TESTED, 101001 TESTED, 101002 validation pending | PARTIALLY TESTED - incorrect-password classification and same-account/source correlation verified | Yes | Correlated/high-risk cases only |
 | User logoff | 4634 | 60137 | 3 | None | IDENTIFIED - real-event validation pending | No | No |
 | Explicit credentials used | 4648 | Not found during initial analysis | — | Not yet implemented | ANALYSIS REQUIRED | Yes | Selected high-risk cases only |
 | Special privileges assigned | 4672 | 67028 in WEF baseline | 3 | None currently | IDENTIFIED - verify rule is loaded and suitable on target Wazuh | Yes | Selected cases only |
@@ -113,12 +113,12 @@ Stock Wazuh processing has been verified on `SERVER01`:
 - `60122` produces the observed level 5 generic alert `Logon Failure - Unknown user or bad password`.
 - The Windows EventChannel decoder exposes `status`, `subStatus`, username, source IP, workstation, logon type, and authentication package for classification and correlation.
 
-Real production and controlled-test observations on 2026-07-24:
+Real production and controlled-test observations:
 
 | Status | SubStatus | Observed meaning | Validation |
 |---|---|---|---|
-| `0xc000006d` | `0xc0000064` | Username does not exist | CONTROLLED TEST - `WazuhNoSuchUser`, NTLM, Logon Type 3 |
-| `0xc000006d` | `0xc000006a` | Existing account, incorrect password | CONTROLLED TEST - `wazuh4738`, NTLM, Logon Type 3 |
+| `0xc000006d` | `0xc0000064` | Username does not exist | CONTROLLED WINDOWS EVENT OBSERVED - `WazuhNoSuchUser`, NTLM, Logon Type 3; custom 101002 post-fix validation pending |
+| `0xc000006d` | `0xc000006a` | Existing account, incorrect password | CONTROLLED TEST - `wazuh4738`, NTLM, Logon Type 3; custom 101000 TESTED |
 | `0xc000006e` | `0xc0000071` | Password expired | OBSERVED IN PRODUCTION |
 | `0xc000006e` | `0xc0000072` | Account disabled | OBSERVED IN PRODUCTION; sample generated locally by `MSExchangeMailboxAssistants.exe` with an empty target username |
 | `0xc000035b` | `0x0` | NTLM/SSPI failure requiring contextual interpretation | OBSERVED IN PRODUCTION - do not classify automatically as an attack |
@@ -127,24 +127,30 @@ The disabled-account sample is an important false-positive warning: Event 4625 c
 
 Current custom rules in `rules/1010-windows-authentication_rules.xml` include:
 
-- `101000` - intended classification for Event 4625 with correct username and incorrect password (`status 0xc000006d`, `subStatus 0xc000006a`).
-- `101001` - intended correlation for repeated `101000` events against the same account from the same source IP.
-- `101002` - intended classification for Event 4625 where the username does not exist (`status 0xc000006d`, `subStatus 0xc0000064`).
+- `101000` - classification for Event 4625 with correct username and incorrect password (`status 0xc000006d`, `subStatus 0xc000006a`); TESTED.
+- `101001` - correlation for repeated `101000` events against the same account from the same source IP; TESTED.
+- `101002` - classification for Event 4625 where the username does not exist (`status 0xc000006d`, `subStatus 0xc0000064`); implemented, post-fix validation pending.
 
-**These custom rules must not currently be considered validated.**
+Controlled real-event testing on 2026-07-25 confirmed:
 
-Controlled real events proved that the corresponding 4625 records reach Wazuh and match stock rule `60122`, but `101000` and `101002` did not fire. A controlled experiment changing `101000` from `<if_sid>60122</if_sid>` to `<if_sid>60105</if_sid>` also did not produce rule `101000`.
+- a real 4625 record reached stock rule `60122` and then matched custom rule `101000`;
+- rule 101000 produced level 5 with username `wazuh4738` and source IP `192.168.150.140` in the description;
+- three matching 101000 events within the configured 300-second window for the same username and source IP triggered rule `101001`;
+- rule 101001 produced the expected level 8 correlation alert;
+- the controlled sequence later generated Event 4740, which matched rule `101200`;
+- Event 4776 was observed alongside the same NTLM authentication attempts with statuses `0xc000006a` and `0xc0000234`; this observation did not add or approve a new 4776 rule.
+
+The earlier 101000 failure was caused by unnecessary field-presence checks using `.+`. Those checks did not behave as intended in the Wazuh rule expression context. Removing them allowed the status/subStatus match to work. Temporary diagnostic rule 101099 confirmed chaining from stock rule 60122 and was removed after the test.
 
 Therefore:
 
 - stock 4625 detection is working,
-- the event fields required for granular classification are present,
-- custom 101000/101002 rule evaluation remains an unresolved implementation issue,
-- `101001` cannot be considered validated while its parent `101000` is not firing,
-- no additional 4625 custom rules should be added until this rule-evaluation issue is understood,
+- custom rule 101000 is validated,
+- correlation rule 101001 is validated,
+- custom rule 101002 remains implemented but must not be marked TESTED until a new controlled nonexistent-username event matches it,
 - routine individual 4625 failures do not generate email.
 
-The next 4625 work is a focused technical investigation of custom-rule evaluation, not expansion of the failure-code taxonomy.
+The next 4625 task is the focused validation of 101002, not expansion of the failure-code taxonomy.
 
 ### 4634 - User logoff
 
@@ -198,7 +204,7 @@ Custom rule `101200` in `rules/1012-windows-account-lockout.xml` is the framewor
 - `alert_by_email`,
 - description includes the locked username.
 
-This rule has been confirmed with a real production lockout event and email notification.
+This rule has been confirmed with a real production lockout event and again during the controlled 4625 correlation test.
 
 Event 4771 status `0x12` is not used as the authoritative lockout notification because it can repeat for subsequent authentication attempts against an already locked, disabled, or revoked account.
 
@@ -210,7 +216,7 @@ Current rules in `rules/1011-windows-kerberos-4771.xml`:
 
 - `101100` - internal Event 4771 base rule.
 - `101101` - status `0x18`, invalid password / stale credentials.
-- `101102` - status `0x12`, locked or revoked account scenario.
+- `101102` - account locked or revoked / status `0x12`.
 - `101110` - repeated invalid-password correlation for the same account and source; level 10; email enabled.
 
 These implemented scenarios have been tested. Additional Kerberos failure codes remain a later Kerberos-scope review and must not be added while the current Windows Authentication baseline is being closed.
@@ -274,7 +280,7 @@ Deployment must stop if required dependencies are missing or differ materially f
 
 Work must proceed in this order:
 
-1. **4625** - diagnose why custom `101000` / `101002` do not fire for controlled events that match stock `60122`; do not add more 4625 rules until resolved.
+1. **4625** - validate custom rule `101002` with a new controlled nonexistent-username event.
 2. **4634** - validate stock logoff behavior.
 3. **4648** - analyze real explicit-credential events and stock coverage.
 4. **4672** - validate real event and standard rule 67028.

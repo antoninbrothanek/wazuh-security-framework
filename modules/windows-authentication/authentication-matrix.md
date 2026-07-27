@@ -1,7 +1,7 @@
 # Windows Authentication Matrix
 
 Version: 0.2.0  
-Status: In development - event-analysis baseline synchronized with current tested state
+Status: In development - event analysis and target-manager validation synchronized with current tested state
 
 ## Purpose
 
@@ -30,8 +30,7 @@ Standard Wazuh rule IDs, levels, descriptions, decoder availability, and local r
 ## Status model
 
 - **TESTED** - confirmed with a real Windows event and, where applicable, real Wazuh processing.
-- **PARTIALLY TESTED** - Windows behavior is confirmed but target-manager Wazuh handling still needs final verification.
-- **IDENTIFIED** - expected stock Wazuh coverage has been located, but target behavior still needs validation.
+- **OBSERVED / TELEMETRY** - event behavior is confirmed, but no standalone alert is required in the current baseline.
 - **INTENTIONALLY EXCLUDED** - investigated and excluded from the current baseline because no useful standalone detection requirement exists.
 
 ---
@@ -43,8 +42,8 @@ Standard Wazuh rule IDs, levels, descriptions, decoder availability, and local r
 | Successful logon | 4624 | 60106 | 3 | None | TESTED | Yes | No |
 | Failed logon | 4625 | 60105 / 60122 | 5 | 101000, 101001, 101002 | TESTED for implemented classifications/correlation | Yes | Correlated/high-risk cases only |
 | User logoff | 4634 | 60137 identified | 3 | None | INTENTIONALLY EXCLUDED from v0.2.0 detection baseline | No | No |
-| Explicit credentials used | 4648 | Stock coverage to re-check on target manager | — | None approved | PARTIALLY TESTED - real Windows behavior validated | Yes, if retained | Selected high-risk cases only |
-| Special privileges assigned | 4672 | 67028 identified in WEF baseline | 3 | None | PARTIALLY TESTED - real Windows behavior/correlation validated; Wazuh target validation pending | Yes, as enrichment | No generic email |
+| Explicit credentials used | 4648 | No stock alerting coverage found on server07 | — | None approved | TESTED for Windows behavior / no generic Wazuh alert | Yes, as selective telemetry | Selected high-risk cases only |
+| Special privileges assigned | 4672 | 67028 | 3 | None | TESTED - real event matched stock rule 67028 on server07 | Yes, as enrichment | No generic email |
 | Account lockout | 4740 | 60115 | 9 | 101200 | TESTED | Yes | Yes |
 | Kerberos pre-authentication failure | 4771 | Windows Security handling + custom rules | varies | 101100, 101101, 101102, 101110 | TESTED for implemented scenarios | Planned | Correlated password attack: Yes |
 | NTLM credential validation | 4776 | Standard Windows/Wazuh telemetry | varies | None approved | OBSERVED during controlled NTLM failures | Optional telemetry | No generic email |
@@ -114,7 +113,7 @@ Controlled testing on 2026-07-25 confirmed:
 - the sequence generated Event 4740 and matched `101200`.
 - `WazuhNoSuchUser` generated Event 4625 with `status=0xc000006d`, `subStatus=0xc0000064`, NTLM, Logon Type 3, workstation `TERMINAL2`, source `192.168.150.140`.
 - that event matched `101002` at level 5 with the expected username and source IP in the alert description.
-- Event 4776 was observed in parallel during NTLM failures with statuses including `0xc000006a` and `0xc0000234`.
+- Event 4776 was observed in parallel during NTLM failures with statuses including `0xc000006a`, `0xc0000064` and `0xc0000234`.
 
 The previous matching problem in 101000/101002 was caused by unnecessary `.+` field-presence checks. Removing them restored the intended status/subStatus classification behavior.
 
@@ -133,7 +132,7 @@ Decision:
 
 ### 4648 - Explicit credentials used
 
-Status: **PARTIALLY TESTED**
+Status: **TESTED for Windows behavior; no generic stock/custom alert**
 
 Controlled Windows testing on `TERMINAL2` confirmed that Event 4648 contains security-relevant context not present in a generic 4624 alone.
 
@@ -158,16 +157,24 @@ Observed controlled examples:
    - `TargetServer=localhost`
    - `Process=consent.exe`
 
+Target-manager validation on `server07` established:
+
+- no controlled Event 4648 appeared in `wazuh-alerts-*`;
+- no loaded stock/custom rule explicitly matches Windows Event ID 4648;
+- the only grep result for text `4648` was unrelated FortiMail rule ID `44648`;
+- `wazuh-archives-*` is not indexed on this manager, so archive-index confirmation is unavailable.
+
 Decision:
 
 - Event 4648 has unique detection/enrichment value for explicit credential use and possible lateral movement.
 - Do **not** alert on every 4648 event.
 - Candidate high-value conditions include `SubjectUser != TargetUser`, non-local target, remote service ports, privileged target accounts, and correlation with later activity.
-- No generic custom rule is approved before target-manager Wazuh handling/stock coverage is verified.
+- Absence of stock alerting coverage does not by itself justify a generic custom rule.
+- No generic custom 4648 rule is approved in v0.2.0.
 
 ### 4672 - Special privileges assigned
 
-Status: **PARTIALLY TESTED**
+Status: **TESTED on Windows and target Wazuh manager**
 
 Controlled testing on `TERMINAL2` with `PCO\administrator` produced Event 4672 with sensitive privileges including:
 
@@ -187,11 +194,28 @@ This experimentally confirms the intended relationship:
 
 `4624 successful logon -> same Logon ID -> 4672 sensitive privileges assigned`
 
+Target-manager validation on `server07` confirmed stock rule `67028` in `0955-WEF-baseline_rules.xml`:
+
+```xml
+<rule id="67028" level="3">
+  <if_sid>60103</if_sid>
+  <field name="win.system.eventID">^4672$</field>
+  <field name="win.eventdata.subjectUserSid" negate="yes">^S-1-5-18$</field>
+  <description>Special privileges assigned to new logon.</description>
+</rule>
+```
+
+Confirmed real Wazuh matches:
+
+- `TERMINAL2` / `PCO\administrator`, SID ending `-500`, Logon ID `0x364a5812` -> rule `67028`, level 3.
+- `server02` / machine account `SERVER01$` -> rule `67028`, level 3.
+
 Decision:
 
 - 4672 is useful primarily as correlation/enrichment for a privileged logon.
-- It is not a generic standalone alert because legitimate administrator and SYSTEM sessions generate it normally.
-- Rule `67028` has been identified in the WEF baseline; target-manager loading and suitability still require verification before relying on it.
+- It is not a generic standalone alert because legitimate administrator and machine-account sessions generate it normally.
+- Stock rule `67028` is loaded and suitable on the validated target manager.
+- No custom rule and no generic email are required.
 
 ### 4740 - Account lockout
 
@@ -246,7 +270,7 @@ Decision:
 | Repeated/correlated authentication attack | Yes when explicitly configured |
 | Account lockout | Yes |
 | Ordinary logoff | No |
-| Explicit credential use | Only selected high-risk scenarios after target-manager validation |
+| Explicit credential use | Only future documented high-risk scenarios; no generic email |
 | Special privilege assignment | No generic email; use only as correlation/enrichment |
 | NTLM credential validation | No generic email |
 
@@ -266,8 +290,8 @@ Expected baseline inputs:
 - failed logons,
 - correlated failed-authentication scenarios,
 - account lockouts,
-- explicit-credential events if target-manager validation confirms useful collection,
-- privileged-logon enrichment if target-manager validation confirms useful collection.
+- explicit-credential telemetry where available,
+- privileged-logon enrichment through stock rule `67028`.
 
 ---
 
@@ -289,12 +313,9 @@ Deployment must stop if required dependencies are missing or differ materially f
 
 ## Remaining work for Windows Authentication v0.2.0
 
-1. Synchronize the Git repository state with `server07`.
-2. Verify Wazuh receipt/stock handling for Events 4648 and 4672 on the target manager.
-3. Add no custom 4648/4672 rule unless that verification demonstrates a specific gap and a documented detection requirement.
-4. Implement and validate the Windows Authentication dashboard.
-5. Review notification policy and final documentation.
-6. Mark v0.2.0 complete after integration/dashboard completion criteria are satisfied.
+1. Implement and validate the Windows Authentication dashboard.
+2. Review notification policy and final documentation.
+3. Mark v0.2.0 complete after dashboard/final-review completion criteria are satisfied.
 
 ---
 

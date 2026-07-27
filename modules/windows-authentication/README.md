@@ -2,7 +2,7 @@
 
 **Version:** 0.2.0
 
-**Status:** In development - baseline event analysis completed; dashboard and final integration validation remain
+**Status:** In development - baseline event analysis and target-manager validation completed; dashboard and final review remain
 
 ---
 
@@ -36,8 +36,8 @@ The module focuses on domain-wide authentication rather than individual server m
 | 4624 | Successful logon | Stock rule 60106 tested with real production events | No for ordinary logons |
 | 4625 | Failed logon | Stock rules validated; custom rules 101000, 101001 and 101002 tested with controlled real events | Correlated/high-risk cases only |
 | 4634 | User logoff | Intentionally excluded from the v0.2.0 detection baseline; no security requirement demonstrated | No |
-| 4648 | Explicit credentials used | Real Windows behavior validated on TERMINAL2; useful as context for explicit credential use/lateral movement; no generic alert approved | Selected high-risk cases only |
-| 4672 | Special privileges assigned | Real Windows behavior validated on TERMINAL2 and correlated to 4624 by Logon ID; enrichment/correlation event, not a generic standalone alert | No generic email |
+| 4648 | Explicit credentials used | Real Windows behavior validated; no stock alerting coverage found on server07; no generic custom alert approved | Selected high-risk cases only |
+| 4672 | Special privileges assigned | Real Windows behavior validated; stock rule 67028 confirmed on server07 with a real event; enrichment/correlation only | No generic email |
 | 4740 | Account locked out | Custom rule 101200 tested against real production and controlled events | Yes |
 | 4771 | Kerberos pre-authentication failed | Implemented in Kerberos rules; invalid-password, locked/revoked and repeated-failure scenarios tested | Correlated password attack: Yes |
 | 4776 | NTLM credential validation | Observed during controlled NTLM failures; retained as NTLM-specific authentication telemetry; no new custom rule approved in v0.2.0 | No generic email |
@@ -85,7 +85,14 @@ Observed examples included:
 - `SubjectUser=kerberos01`, `TargetUser=administrator`, `TargetServer=server01`, source/destination context `192.168.150.2:445` during SMB access using explicit credentials.
 - legitimate local elevation/UAC activity using `consent.exe`, demonstrating that Event 4648 alone must not be treated as malicious.
 
-Decision: retain 4648 as security-relevant telemetry and use it only for documented high-risk detections or correlation. No generic custom alert is approved.
+Target-manager validation on `server07` confirmed:
+
+- no Event 4648 alert was present in `wazuh-alerts-*` for the controlled samples;
+- the loaded stock/custom rulesets contained no Windows rule explicitly matching Event ID 4648;
+- the only grep hit for `4648` was unrelated FortiMail rule ID `44648`;
+- `wazuh-archives-*` is not indexed on this installation, so archive-index verification is unavailable.
+
+Decision: retain 4648 as security-relevant telemetry and use it only for documented high-risk detections or correlation. Do not create a generic custom alert solely because stock alerting coverage is absent.
 
 ### Verified Event 4672 behavior
 
@@ -93,7 +100,16 @@ Controlled testing on `TERMINAL2` with `PCO\administrator` confirmed Event 4672 
 
 The Event 4672 `SubjectLogonId` matched the Event 4624 `TargetLogonId` (`0x364a5812`) for the same administrator logon.
 
-Decision: 4672 is an enrichment/correlation event for identifying privileged logons. It does not justify a generic standalone security alert because legitimate administrator and SYSTEM logons generate it normally.
+Target-manager validation on `server07` confirmed stock rule `67028` in `0955-WEF-baseline_rules.xml`:
+
+- Event ID 4672;
+- level 3;
+- excludes LocalSystem SID `S-1-5-18`;
+- description `Special privileges assigned to new logon.`
+
+A real controlled `TERMINAL2` Event 4672 for `PCO\administrator` matched rule `67028`. A second legitimate sample from `server02` for machine account `SERVER01$` also matched the same rule, reinforcing that 4672 is normal privileged-logon telemetry rather than a standalone incident.
+
+Decision: 4672 is an enrichment/correlation event for identifying privileged logons. Stock rule 67028 is sufficient; no custom rule and no generic email are required.
 
 ### Event 4634 disposition
 
@@ -115,12 +131,9 @@ This includes tested user lifecycle, password management, security-group members
 
 ## Remaining work for v0.2.0
 
-1. Synchronize the repository state with `server07` and validate the target manager configuration.
-2. Re-check Wazuh handling/stock coverage for Events 4648 and 4672 on the target manager before adding any custom rule.
-3. Keep `authentication-matrix.md` synchronized with confirmed target-manager results.
-4. Implement and validate the Windows Authentication dashboard.
-5. Review the complete notification policy and documentation.
-6. Mark v0.2.0 complete only after the remaining integration and dashboard criteria are satisfied.
+1. Implement and validate the Windows Authentication dashboard.
+2. Review the complete notification policy and final documentation.
+3. Mark v0.2.0 complete only after the dashboard and final review criteria are satisfied.
 
 ---
 

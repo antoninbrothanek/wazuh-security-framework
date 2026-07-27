@@ -73,7 +73,7 @@ Primary files:
 - `modules/windows-authentication/README.md`
 - `modules/windows-authentication/authentication-matrix.md`
 
-Status: IN DEVELOPMENT. The planned event-analysis baseline is now closed. Remaining work is target-manager synchronization/validation, dashboard implementation and final notification/documentation review.
+Status: IN DEVELOPMENT. Event-analysis baseline and target-manager validation are complete. Remaining work is the Windows Authentication dashboard plus final notification/documentation review.
 
 ## Authentication baseline
 
@@ -82,8 +82,8 @@ Status: IN DEVELOPMENT. The planned event-analysis baseline is now closed. Remai
 | 4624 | Successful logon | stock 60106 | TESTED | ordinary logon: No |
 | 4625 | Failed logon | stock 60105/60122; custom 101000, 101001, 101002 | TESTED for implemented classifications/correlation | correlation/high-risk only |
 | 4634 | User logoff | stock 60137 identified | INTENTIONALLY EXCLUDED from v0.2.0 detection baseline | No |
-| 4648 | Explicit credentials used | real Windows behavior validated; stock Wazuh handling to re-check on target manager | PARTIALLY TESTED | selected high-risk cases only |
-| 4672 | Special privileges assigned | stock 67028 identified; real Windows behavior/correlation validated | PARTIALLY TESTED - target-manager rule validation pending | no generic email; enrichment/correlation |
+| 4648 | Explicit credentials used | no stock alerting coverage found on server07; no generic custom rule approved | TESTED for Windows behavior / no generic Wazuh alert | selected high-risk cases only |
+| 4672 | Special privileges assigned | stock 67028, level 3 | TESTED on real event and target manager | no generic email; enrichment/correlation |
 | 4740 | Account locked out | custom 101200 based on stock 60115 | TESTED | Yes |
 | 4771 | Kerberos pre-authentication failed | custom 101100/101101/101102/101110 | TESTED for implemented scenarios | correlated attack: Yes |
 | 4776 | NTLM credential validation | observed during controlled NTLM failures; no custom rule approved | OBSERVED / TELEMETRY | No generic email |
@@ -124,7 +124,14 @@ Observed controlled examples included:
 - `SubjectUser=kerberos01`, `TargetUser=administrator`, `TargetServer=server01`, `IpAddress=192.168.150.2`, `IpPort=445` during SMB access using explicit credentials;
 - legitimate UAC/elevation activity using `consent.exe`, showing that 4648 alone must not be classified as malicious.
 
-Decision: retain 4648 as security-relevant telemetry for documented high-risk conditions/correlation. Do not create a generic alert for every 4648. Target-manager Wazuh handling/stock coverage must be re-checked before any custom rule is considered.
+Target-manager validation on `server07` established:
+
+- no controlled Event 4648 alert was present in `wazuh-alerts-*`;
+- no loaded stock/custom rule explicitly matches Windows Event ID 4648;
+- the only grep hit for text `4648` was unrelated FortiMail rule ID `44648`;
+- `wazuh-archives-*` is not indexed on this manager, so archive-index confirmation is unavailable.
+
+Decision: retain 4648 as security-relevant telemetry for documented high-risk conditions/correlation. Do not create a generic alert solely because stock alerting coverage is absent. No generic custom 4648 rule is approved in v0.2.0.
 
 ### Event 4672 verified state
 
@@ -132,7 +139,16 @@ Controlled testing on `TERMINAL2` with `PCO\administrator` generated Event 4672 
 
 The Event 4672 `SubjectLogonId=0x364a5812` matched Event 4624 `TargetLogonId=0x364a5812` for the same administrator logon.
 
-Decision: 4672 is correlation/enrichment for a privileged logon rather than a generic standalone alert. Stock rule 67028 remains to be verified on the target manager after synchronization.
+Target-manager validation on `server07` confirmed stock rule `67028` in `0955-WEF-baseline_rules.xml`:
+
+- matches Event ID 4672;
+- level 3;
+- excludes LocalSystem SID `S-1-5-18`;
+- description `Special privileges assigned to new logon.`
+
+A real `TERMINAL2` Event 4672 for `PCO\administrator` matched rule `67028` at level 3. A second legitimate event from `server02` for machine account `SERVER01$` also matched rule `67028`, confirming that this event is normal privileged-logon telemetry and should not be treated as a generic incident.
+
+Decision: 4672 is correlation/enrichment for a privileged logon rather than a generic standalone alert. Stock rule 67028 is loaded and suitable on the validated target manager. No custom rule and no generic email are required.
 
 ### Event 4634 disposition
 
@@ -261,26 +277,23 @@ No duplicate custom rules are created for these groups.
 
 ## Active milestone: Windows Authentication v0.2.0
 
-The planned Windows authentication event-analysis work is now complete for the current scope:
+The planned Windows authentication event-analysis and target-manager validation work is complete for the current scope:
 
 - 4624 validated;
 - 4625 custom rules 101000, 101001 and 101002 validated;
 - 4634 intentionally excluded from the v0.2.0 detection baseline;
-- 4648 real Windows behavior analyzed and disposition defined;
-- 4672 real Windows behavior/correlation analyzed and disposition defined;
+- 4648 real Windows behavior analyzed; no stock alerting coverage found on server07; no generic custom rule approved;
+- 4672 real Windows behavior/correlation analyzed and stock rule 67028 validated on server07;
 - 4740 validated;
 - 4771 implemented scenarios validated;
-- 4776 documented as NTLM-specific telemetry without a new generic custom rule.
+- 4776 documented as NTLM-specific telemetry without a new generic custom rule;
+- Git repository state synchronized with `server07` before target-manager validation.
 
 The next work is:
 
-1. Synchronize the Git repository state with `server07` (`/opt/wazuh-security-framework`).
-2. Verify target-manager Wazuh handling/stock coverage for Events 4648 and 4672 after synchronization.
-3. Add no custom rule for 4648/4672 unless a specific verified coverage gap and detection requirement exists.
-4. Keep `authentication-matrix.md` synchronized with target-manager results.
-5. Implement and validate the Windows Authentication dashboard.
-6. Review notification policy and final documentation.
-7. Mark Windows Authentication v0.2.0 complete only after the remaining integration/dashboard criteria are satisfied.
+1. Implement and validate the Windows Authentication dashboard.
+2. Review notification policy and final documentation.
+3. Mark Windows Authentication v0.2.0 complete only after the dashboard and final-review criteria are satisfied.
 
 Before adding another rule:
 

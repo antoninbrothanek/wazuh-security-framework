@@ -73,20 +73,34 @@ Primary files:
 - `modules/windows-authentication/README.md`
 - `modules/windows-authentication/authentication-matrix.md`
 
-Status: IN DEVELOPMENT. Event-analysis baseline, target-manager validation and Windows Authentication Security dashboard are complete. Remaining work is the final notification/documentation review.
+Status: COMPLETE as of 2026-07-27. Event-analysis baseline, target-manager validation, Windows Authentication Security dashboard and final production notification-policy review are complete for the defined v0.2.0 scope.
 
 ## Authentication baseline
 
 | Event ID | Meaning | Wazuh/custom coverage | Status | Email policy |
 |---:|---|---|---|---|
-| 4624 | Successful logon | stock 60106 | TESTED | ordinary logon: No |
-| 4625 | Failed logon | stock 60105/60122; custom 101000, 101001, 101002 | TESTED for implemented classifications/correlation | correlation/high-risk only |
+| 4624 | Successful logon | stock 60106 | TESTED | No |
+| 4625 | Failed logon | stock 60105/60122; custom 101000, 101001, 101002 | TESTED for implemented classifications/correlation | No for 101000/101001/101002 |
 | 4634 | User logoff | stock 60137 identified | INTENTIONALLY EXCLUDED from v0.2.0 detection baseline | No |
-| 4648 | Explicit credentials used | no stock alerting coverage found on server07; no generic custom rule approved | TESTED for Windows behavior / no generic Wazuh alert | selected high-risk cases only |
-| 4672 | Special privileges assigned | stock 67028, level 3 | TESTED on real event and target manager | no generic email; enrichment/correlation |
-| 4740 | Account locked out | custom 101200 based on stock 60115 | TESTED | Yes |
-| 4771 | Kerberos pre-authentication failed | custom 101100/101101/101102/101110 | TESTED for implemented scenarios | correlated attack: Yes |
+| 4648 | Explicit credentials used | no stock alerting coverage found on server07; no generic custom rule approved | TESTED for Windows behavior / no generic Wazuh alert | No generic email |
+| 4672 | Special privileges assigned | stock 67028, level 3 | TESTED on real event and target manager | No generic email; enrichment/correlation |
+| 4740 | Account locked out | custom 101200 based on stock 60115 | TESTED | Yes - 101200 |
+| 4771 | Kerberos pre-authentication failed | custom 101100/101101/101102/101110 | TESTED for implemented scenarios | Only 101110 repeated attack correlation |
 | 4776 | NTLM credential validation | observed during controlled NTLM failures; no custom rule approved | OBSERVED / TELEMETRY | No generic email |
+
+### Final authentication notification policy
+
+Production rule review on `server07` confirmed:
+
+- 101000 - no email;
+- 101001 - no email;
+- 101002 - no email;
+- 101101 - no email;
+- 101102 - no email;
+- 101110 - email enabled with `alert_by_email`;
+- 101200 - email enabled with `alert_by_email`.
+
+Historical `.bak-*` files are not authoritative; this review used the active `.xml` files in `/var/ossec/etc/rules/`.
 
 ### Event 4625 verified state
 
@@ -158,15 +172,15 @@ A controlled session-close check did not produce a useful 4634 event for the tes
 
 `rules/1010-windows-authentication_rules.xml`
 
-- 101000 - Event 4625 incorrect-password classification; TESTED.
-- 101001 - repeated incorrect-password correlation for the same account and source IP; TESTED.
-- 101002 - Event 4625 nonexistent-username classification; TESTED.
+- 101000 - Event 4625 incorrect-password classification; TESTED; no email.
+- 101001 - repeated incorrect-password correlation for the same account and source IP; TESTED; no email.
+- 101002 - Event 4625 nonexistent-username classification; TESTED; no email.
 
 `rules/1011-windows-kerberos-4771.xml`
 
 - 101100 - internal Event 4771 base rule.
-- 101101 - status 0x18, invalid password/stale credentials.
-- 101102 - status 0x12, locked/disabled/revoked account scenario.
+- 101101 - status 0x18, invalid password/stale credentials; no email.
+- 101102 - status 0x12, locked/disabled/revoked account scenario; no email.
 - 101110 - repeated invalid-password correlation; email enabled.
 
 `rules/1012-windows-account-lockout.xml`
@@ -295,29 +309,24 @@ No duplicate custom rules are created for these groups.
 
 # Current work
 
-## Active milestone: Windows Authentication v0.2.0
+## Completed milestone: Windows Authentication v0.2.0
 
-The planned Windows authentication event-analysis, target-manager validation and dashboard implementation are complete for the current scope:
+Windows Authentication v0.2.0 was completed on 2026-07-27 for the defined scope:
 
-- 4624 validated;
-- 4625 custom rules 101000, 101001 and 101002 validated;
-- 4634 intentionally excluded from the v0.2.0 detection baseline;
-- 4648 real Windows behavior analyzed; no stock alerting coverage found on server07; no generic custom rule approved;
-- 4672 real Windows behavior/correlation analyzed and stock rule 67028 validated on server07;
-- 4740 validated;
-- 4771 implemented scenarios validated;
-- 4776 documented as NTLM-specific telemetry without a new generic custom rule;
-- Windows Authentication Security dashboard implemented and validated, including failed-logon, Kerberos and privileged-user views.
+- authentication baseline events have explicit dispositions;
+- custom 4625 and Kerberos rules were validated with controlled real events;
+- account lockout rule 101200 was validated;
+- 4648 and 4672 were analyzed and given explicit stock/custom-policy decisions;
+- target-manager behavior was validated on `server07`;
+- Windows Authentication Security dashboard was implemented and validated;
+- production notification policy was reviewed against active XML rules;
+- authentication email is explicitly enabled only for 101110 and 101200.
 
-The next work is:
+No further Windows Authentication work is required for v0.2.0. Future changes require a new documented requirement or a later module/release scope.
 
-1. Review the complete Windows Authentication notification policy.
-2. Perform the final documentation consistency review.
-3. Mark Windows Authentication v0.2.0 complete if the review finds no remaining required work.
+Before adding another rule anywhere in the framework:
 
-Before adding another rule:
-
-1. Verify the Windows event exists in the Windows Security Event Log.
+1. Verify the source event exists in the authoritative source log.
 2. Verify Wazuh receives the event.
 3. Check existing stock Wazuh rules.
 4. Add only the required custom rule.

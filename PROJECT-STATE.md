@@ -1,6 +1,6 @@
 # Wazuh Security Framework – Project State
 
-Last updated: 2026-07-25
+Last updated: 2026-07-27
 
 ## Project goal
 
@@ -73,7 +73,7 @@ Primary files:
 - `modules/windows-authentication/README.md`
 - `modules/windows-authentication/authentication-matrix.md`
 
-Status: IN DEVELOPMENT. Event-analysis baseline and target-manager validation are complete. Remaining work is the Windows Authentication dashboard plus final notification/documentation review.
+Status: IN DEVELOPMENT. Event-analysis baseline, target-manager validation and Windows Authentication Security dashboard are complete. Remaining work is the final notification/documentation review.
 
 ## Authentication baseline
 
@@ -172,6 +172,26 @@ A controlled session-close check did not produce a useful 4634 event for the tes
 `rules/1012-windows-account-lockout.xml`
 
 - 101200 - Event 4740 authoritative account-lockout alert; tested with real production and controlled events; email enabled.
+
+### Windows Authentication Security dashboard
+
+Dashboard implementation and validation completed on 2026-07-27.
+
+The dashboard contains:
+
+- failed-logon count for Event 4625;
+- repeated failed-logon count using rule 101001;
+- unknown-username count using rule 101002;
+- account-lockout count using rule 101200;
+- top failed usernames;
+- top failed source IP addresses;
+- authentication-failure timeline;
+- Kerberos failure split metrics for rules 101101, 101102 and 101110;
+- top privileged user accounts using stock rule 67028.
+
+For the privileged-user visualization, machine accounts and `SYSTEM` are excluded from the Terms bucket using the validated expression `(.*\$|SYSTEM)`. This prevents normal machine-account 4672 volume from dominating the security view while retaining the underlying stock rule as the data source.
+
+Detailed panel/filter definitions are documented in `modules/windows-authentication/README.md`.
 
 ---
 
@@ -277,7 +297,7 @@ No duplicate custom rules are created for these groups.
 
 ## Active milestone: Windows Authentication v0.2.0
 
-The planned Windows authentication event-analysis and target-manager validation work is complete for the current scope:
+The planned Windows authentication event-analysis, target-manager validation and dashboard implementation are complete for the current scope:
 
 - 4624 validated;
 - 4625 custom rules 101000, 101001 and 101002 validated;
@@ -287,13 +307,13 @@ The planned Windows authentication event-analysis and target-manager validation 
 - 4740 validated;
 - 4771 implemented scenarios validated;
 - 4776 documented as NTLM-specific telemetry without a new generic custom rule;
-- Git repository state synchronized with `server07` before target-manager validation.
+- Windows Authentication Security dashboard implemented and validated, including failed-logon, Kerberos and privileged-user views.
 
 The next work is:
 
-1. Implement and validate the Windows Authentication dashboard.
-2. Review notification policy and final documentation.
-3. Mark Windows Authentication v0.2.0 complete only after the dashboard and final-review criteria are satisfied.
+1. Review the complete Windows Authentication notification policy.
+2. Perform the final documentation consistency review.
+3. Mark Windows Authentication v0.2.0 complete if the review finds no remaining required work.
 
 Before adding another rule:
 

@@ -2,7 +2,7 @@
 
 **Version:** 0.2.0
 
-**Status:** In development - baseline event analysis and target-manager validation completed; dashboard and final review remain
+**Status:** In development - baseline event analysis, target-manager validation and dashboard implementation completed; final notification/documentation review remains
 
 ---
 
@@ -117,6 +117,32 @@ A controlled check did not produce a useful Event 4634 sample for the tested ses
 
 ---
 
+## Windows Authentication Security dashboard
+
+The dashboard `Windows Authentication Security` was implemented and validated on 2026-07-27 using the `wazuh-alerts-*` index pattern.
+
+Validated panels:
+
+- `Windows Auth - Failed Logons` - Event ID 4625 count.
+- `Windows Auth - Repeated Failed Logons` - custom rule 101001 count.
+- `Windows Auth - Unknown Usernames` - custom rule 101002 count.
+- `Windows Auth - Account Lockouts` - custom rule 101200 count.
+- `Windows Auth - Top Failed Usernames` - Event ID 4625 grouped by `data.win.eventdata.targetUserName`.
+- `Windows Auth - Top Failed Source IPs` - Event ID 4625 grouped by `data.win.eventdata.ipAddress`.
+- `Windows Auth - Authentication Failures Timeline` - Event ID 4625 over time.
+- `Windows Auth - Kerberos Failures` - split metric for rules 101101, 101102 and 101110 with labels `Kerberos invalid password`, `Kerberos account locked or revoked`, and `Repeated Kerberos failures`.
+- `Top Privileged User Accounts` - stock rule 67028 grouped by `data.win.eventdata.subjectUserName`.
+
+For `Top Privileged User Accounts`, machine accounts and LocalSystem noise are removed at the Terms aggregation level using the validated Exclude expression:
+
+`(.*\$|SYSTEM)`
+
+This filtering is intentionally applied to the visualization bucket rather than to the global DQL query. The dashboard therefore retains rule `67028` as the source while presenting human privileged-account activity without machine-account domination.
+
+The dashboard is intended for investigation and operational visibility. Its presence does not change the module's email-notification policy.
+
+---
+
 ## Related Active Directory management coverage
 
 Active Directory management events are tracked separately from the authentication baseline but are already implemented in this repository:
@@ -131,9 +157,8 @@ This includes tested user lifecycle, password management, security-group members
 
 ## Remaining work for v0.2.0
 
-1. Implement and validate the Windows Authentication dashboard.
-2. Review the complete notification policy and final documentation.
-3. Mark v0.2.0 complete only after the dashboard and final review criteria are satisfied.
+1. Review the complete notification policy and final documentation.
+2. Mark v0.2.0 complete only after the final-review criteria are satisfied.
 
 ---
 

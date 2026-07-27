@@ -2,7 +2,7 @@
 
 **Version:** 0.2.0
 
-**Status:** In development - baseline event analysis, target-manager validation and dashboard implementation completed; final notification/documentation review remains
+**Status:** COMPLETE - baseline event analysis, target-manager validation, dashboard implementation and notification-policy review completed
 
 ---
 
@@ -33,16 +33,36 @@ The module focuses on domain-wide authentication rather than individual server m
 
 | Event ID | Description | Current state | Email policy |
 |---:|---|---|---|
-| 4624 | Successful logon | Stock rule 60106 tested with real production events | No for ordinary logons |
-| 4625 | Failed logon | Stock rules validated; custom rules 101000, 101001 and 101002 tested with controlled real events | Correlated/high-risk cases only |
+| 4624 | Successful logon | Stock rule 60106 tested with real production events | No |
+| 4625 | Failed logon | Stock rules validated; custom rules 101000, 101001 and 101002 tested with controlled real events | No for 101000/101001/101002 |
 | 4634 | User logoff | Intentionally excluded from the v0.2.0 detection baseline; no security requirement demonstrated | No |
-| 4648 | Explicit credentials used | Real Windows behavior validated; no stock alerting coverage found on server07; no generic custom alert approved | Selected high-risk cases only |
+| 4648 | Explicit credentials used | Real Windows behavior validated; no stock alerting coverage found on server07; no generic custom alert approved | No generic email |
 | 4672 | Special privileges assigned | Real Windows behavior validated; stock rule 67028 confirmed on server07 with a real event; enrichment/correlation only | No generic email |
-| 4740 | Account locked out | Custom rule 101200 tested against real production and controlled events | Yes |
-| 4771 | Kerberos pre-authentication failed | Implemented in Kerberos rules; invalid-password, locked/revoked and repeated-failure scenarios tested | Correlated password attack: Yes |
+| 4740 | Account locked out | Custom rule 101200 tested against real production and controlled events | Yes - 101200 |
+| 4771 | Kerberos pre-authentication failed | Implemented in Kerberos rules; invalid-password, locked/revoked and repeated-failure scenarios tested | Only repeated attack correlation 101110 |
 | 4776 | NTLM credential validation | Observed during controlled NTLM failures; retained as NTLM-specific authentication telemetry; no new custom rule approved in v0.2.0 | No generic email |
 
 Detailed mapping is maintained in `authentication-matrix.md`.
+
+---
+
+## Final notification policy
+
+The production rule review on `server07` confirmed the final v0.2.0 email policy:
+
+| Rule | Meaning | Level | Email |
+|---:|---|---:|---|
+| 101000 | Event 4625 incorrect password | 5 | No |
+| 101001 | Repeated Event 4625 incorrect password for same account/source | 8 | No |
+| 101002 | Event 4625 nonexistent username | 5 | No |
+| 101101 | Kerberos invalid password / status 0x18 | 5 | No |
+| 101102 | Kerberos account locked or revoked / status 0x12 | 7 | No |
+| 101110 | Repeated Kerberos invalid-password attack correlation | 10 | Yes - `alert_by_email` |
+| 101200 | Authoritative Event 4740 account lockout | 9 | Yes - `alert_by_email` |
+
+The policy deliberately avoids email for ordinary authentication failures and for the 101001 repeated-4625 correlation because those events are useful for dashboards and investigation but can be operationally noisy. Email is reserved for the stronger repeated Kerberos attack correlation and authoritative account lockout event.
+
+Historical `.bak-*` rule files are not authoritative. Notification-policy validation is based on the currently active `.xml` files in `/var/ossec/etc/rules/`.
 
 ---
 
@@ -50,12 +70,12 @@ Detailed mapping is maintained in `authentication-matrix.md`.
 
 - `rules/1010-windows-authentication_rules.xml`
   - 101000 - incorrect-password classification for Event 4625; TESTED
-  - 101001 - repeated incorrect password for same account and source; TESTED
-  - 101002 - nonexistent-username classification for Event 4625; TESTED
+  - 101001 - repeated incorrect password for same account and source; TESTED; no email
+  - 101002 - nonexistent-username classification for Event 4625; TESTED; no email
 - `rules/1011-windows-kerberos-4771.xml`
   - 101100 - internal 4771 base rule
-  - 101101 - Kerberos invalid password / status 0x18
-  - 101102 - account locked or revoked / status 0x12
+  - 101101 - Kerberos invalid password / status 0x18; no email
+  - 101102 - account locked or revoked / status 0x12; no email
   - 101110 - repeated Kerberos invalid-password correlation; email enabled
 - `rules/1012-windows-account-lockout.xml`
   - 101200 - authoritative Event 4740 account-lockout notification; email enabled
@@ -155,13 +175,6 @@ This includes tested user lifecycle, password management, security-group members
 
 ---
 
-## Remaining work for v0.2.0
+## v0.2.0 completion
 
-1. Review the complete notification policy and final documentation.
-2. Mark v0.2.0 complete only after the final-review criteria are satisfied.
-
----
-
-## Completion rule
-
-The module is not complete merely because events are collected. Every baseline event must have an explicit disposition: standard Wazuh coverage, custom detection, correlation/enrichment, dashboard-only retention, or intentional exclusion.
+Windows Authentication v0.2.0 is complete as of 2026-07-27 for the defined scope. Every baseline event has an explicit disposition: stock coverage, tested custom detection, correlation/enrichment, dashboard/telemetry retention, or intentional exclusion. The final production notification-policy review confirmed that only rules 101110 and 101200 explicitly generate authentication email notifications.

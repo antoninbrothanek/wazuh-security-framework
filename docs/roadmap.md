@@ -1,6 +1,6 @@
 # Wazuh Security Framework Roadmap
 
-Last reviewed: 2026-07-24
+Last reviewed: 2026-07-29
 
 ## Status model
 
@@ -9,6 +9,27 @@ Last reviewed: 2026-07-24
 - `[ ]` planned
 
 The roadmap describes planned project progression. `PROJECT-STATE.md` remains the authoritative record of what has actually been implemented and tested.
+
+---
+
+## Immediate next work: Windows Privilege Escalation
+
+The next project session will begin the Windows Privilege Escalation module.
+
+Planning document:
+
+- `modules/windows-privilege-escalation/privilege-escalation-matrix.md`
+
+Initial scope:
+
+- Event 4672 as previously validated correlation/enrichment telemetry;
+- Events 4673 and 4674 for privileged service and privileged object operations;
+- Event 4688 for process creation and escalation-chain context;
+- Events 4697 and 7045 for service installation;
+- Event 4964 for special-group logon context;
+- Event 1102 for Security audit log clearing.
+
+First planned work item: validate Event 4688 collection, command-line auditing, decoded Wazuh fields and active stock-rule coverage before creating any custom rule.
 
 ---
 

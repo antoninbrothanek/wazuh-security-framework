@@ -1,0 +1,35 @@
+<group name="windows,windows_security,privilege_escalation,persistence,">
+
+  <!--
+    Event ID: 4697
+    Windows Security Audit
+    A service was installed in the system
+
+    MITRE ATT&CK:
+      T1543.003 - Create or Modify System Process: Windows Service
+
+    Prerequisite:
+      Advanced Audit Policy ->
+      System ->
+      Audit Security System Extension = Success
+  -->
+
+  <rule id="111000" level="10">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4697$</field>
+    <description>Windows service installed by $(win.eventdata.subjectDomainName)\$(win.eventdata.subjectUserName): $(win.eventdata.serviceName)</description>
+
+    <mitre>
+      <id>T1543.003</id>
+    </mitre>
+
+    <group>
+      windows,
+      windows_security,
+      privilege_escalation,
+      persistence,
+      service_installation,
+    </group>
+  </rule>
+
+</group>

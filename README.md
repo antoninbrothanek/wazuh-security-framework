@@ -20,14 +20,21 @@ The framework is designed for long-term operation in production and follows one 
 - Maintain complete documentation and testing.
 - Make every module portable to another Wazuh installation.
 
-## Planned Modules
+## Modules
 
 - Windows Authentication
+- Windows Privilege Escalation
 - Kerberos
 - NTLM
 - Active Directory
 - Microsoft Exchange
 - Linux Firewall
+
+Current Windows Privilege Escalation documentation:
+
+- `modules/windows-privilege-escalation/README.md`
+- `modules/windows-privilege-escalation/privilege-escalation-matrix.md`
+- `docs/windows-privilege-escalation/event-4697-service-installed.md`
 
 ## Version
 

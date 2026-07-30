@@ -1,6 +1,6 @@
 # Windows Privilege Escalation Matrix
 
-Last updated: 2026-07-29
+Last updated: 2026-07-30
 
 ## Purpose
 
@@ -17,7 +17,7 @@ No custom Wazuh rule is approved merely because an event is security-relevant. E
 | 4672 | Security | Special privileges assigned to a new logon | Enrichment and correlation for privileged sessions | Medium | Reuse the validated Windows Authentication result and correlate by Logon ID where useful | TESTED AS TELEMETRY |
 | 4673 | Security | A privileged service was called | Possible abuse of sensitive privileges; context dependent | High | Enable required audit policy, generate controlled events and inspect decoded fields and stock rules | PLANNED |
 | 4674 | Security | An operation was attempted on a privileged object | Possible sensitive-object or privilege abuse; potentially noisy | High | Generate controlled ownership/ACL operations and determine whether the event provides actionable context | PLANNED |
-| 4688 | Security | A new process was created | Primary process context for escalation chains; not a generic escalation alert | Critical | Verify process-command-line auditing, inspect Wazuh fields and test selected elevated process scenarios | PLANNED |
+| 4688 | Security | A new process was created | Primary process context for escalation chains; not a generic escalation alert | Critical | Process auditing, command-line inclusion, decoded Wazuh fields and stock-rule coverage verified | TESTED |
 | 4697 | Security | A service was installed in the system | Persistence or privilege-escalation technique; legitimate administration also possible | Critical | Create and remove a controlled test service; inspect Security log and stock Wazuh coverage | PLANNED |
 | 7045 | System | A service was installed in the system | Independent service-installation evidence from the System log | Critical | Compare with Event 4697, confirm collection and decide which event is authoritative or complementary | PLANNED |
 | 4964 | Security | Special groups were assigned to a new logon | Enrichment for sensitive group membership in a logon token | Medium | Confirm audit-policy requirements, generate a real event if feasible and evaluate usefulness against 4672 | PLANNED |
@@ -66,6 +66,81 @@ Expected systems:
 - Events 4673 and 4674 may be high-volume and must not be enabled or alerted on broadly before noise is measured.
 - Event 4672 remains enrichment/correlation telemetry unless a new documented scenario proves that a narrower rule is required.
 
+## Event ID 4688 – Process Creation
+
+### Status
+
+TESTED
+
+### Windows validation
+
+Validated on `SERVER01.pco.cz` on 2026-07-30.
+
+- Advanced Audit Policy subcategory `Process Creation`: `Success`.
+- Registry value `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit\ProcessCreationIncludeCmdLine_Enabled`: enabled.
+- Event ID 4688 was generated successfully.
+- Process command line was present in the Security event.
+- Parent process, subject account, token elevation type and mandatory integrity label were present.
+- Controlled test command: `whoami /all`.
+- Observed process: `C:\Windows\System32\whoami.exe`.
+- Observed parent process: `C:\Windows\System32\cmd.exe`.
+- Observed mandatory label: `S-1-16-12288` (`High Mandatory Level`).
+
+### Wazuh validation
+
+- Agent: `SERVER01` (`001`).
+- Manager: `server07`.
+- Decoder: `windows_eventchannel`.
+- Stock rule ID: `67027`.
+- Stock rule description: `A process was created.`
+- Stock rule level: `3`.
+- Stock rule email: disabled.
+- Custom decoder: not required.
+- Custom base rule for all Event ID 4688 events: not required.
+
+### Verified decoded fields
+
+- `data.win.system.eventID`
+- `data.win.eventdata.subjectUserSid`
+- `data.win.eventdata.subjectUserName`
+- `data.win.eventdata.subjectDomainName`
+- `data.win.eventdata.subjectLogonId`
+- `data.win.eventdata.newProcessId`
+- `data.win.eventdata.newProcessName`
+- `data.win.eventdata.tokenElevationType`
+- `data.win.eventdata.processId`
+- `data.win.eventdata.commandLine`
+- `data.win.eventdata.parentProcessName`
+- `data.win.eventdata.mandatoryLabel`
+
+### Operational conclusion
+
+Event ID 4688 is high-volume telemetry. The stock Wazuh rule is sufficient as the collection baseline, but level 3 is not intended to identify privilege escalation by itself.
+
+Any later custom detection must use additional context such as command-line arguments, parent process, user, integrity level, Logon ID or surrounding events. A process name alone is not sufficient for a high-severity alert.
+
+## Candidate processes for detailed analysis
+
+The following processes are approved for individual analysis. Approval means they will be tested and evaluated; it does not mean that every execution will generate an alert.
+
+| Process | Detailed analysis | Current status |
+|---|---|---|
+| `powershell.exe` | YES | PLANNED |
+| `pwsh.exe` | YES | PLANNED |
+| `cmd.exe` | YES | PLANNED |
+| `reg.exe` | YES | PLANNED |
+| `net.exe` | YES | PLANNED |
+| `net1.exe` | YES | PLANNED |
+| `rundll32.exe` | YES | PLANNED |
+| `mshta.exe` | YES | PLANNED |
+| `cscript.exe` | YES | PLANNED |
+| `wscript.exe` | YES | PLANNED |
+| `schtasks.exe` | YES | PLANNED |
+| `sc.exe` | YES | PLANNED |
+| `psexec.exe` | YES | PLANNED |
+| `certutil.exe` | YES | PLANNED |
+| `whoami.exe` | NO | TEST TOOL ONLY |
+
 ## Candidate correlations
 
 The following are hypotheses for later testing, not approved detections:
@@ -83,13 +158,15 @@ No correlation will be implemented until the individual source events and decode
 - Service installation and Security log clearing are candidates for immediate email, but the final policy must be based on stock-rule behavior and production noise.
 - Correlation alerts may receive email only after controlled validation and an explicit policy decision.
 
-## First work item
+## Next work item
 
-Begin with Event ID 4688 because it provides the process context needed by most later privilege-escalation correlations.
+Continue with controlled Event ID 4688 process scenarios. Begin with `powershell.exe`, then evaluate `cmd.exe` as an explicitly approved analysis target.
 
-Before writing rules:
+Before creating any custom process rule:
 
-1. verify that process creation auditing is enabled;
-2. verify that command-line inclusion is enabled;
-3. generate a normal and an elevated process event;
-4. inspect the corresponding Wazuh documents and active stock rules.
+1. generate a controlled benign process event;
+2. inspect the Windows XML;
+3. inspect the Wazuh-decoded document;
+4. identify normal administrative noise;
+5. define a specific suspicious scenario;
+6. create a custom rule only when the stock rule cannot express the approved scenario.

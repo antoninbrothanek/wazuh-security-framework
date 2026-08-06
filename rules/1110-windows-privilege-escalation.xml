@@ -80,7 +80,7 @@
   <rule id="111102" level="0">
     <if_sid>111101</if_sid>
     <field name="win.eventdata.subjectUserSid">^S-1-5-18$</field>
-    <field name="win.eventdata.processName" type="pcre2">(?i)^C:\\Windows\\System32\\lsass\.exe$</field>
+    <field name="win.eventdata.processName" type="pcre2">(?i)^C:\\+Windows\\+System32\\+lsass\.exe$</field>
     <field name="win.eventdata.service" type="pcre2">^LsaRegisterLogonProcess\(\)$</field>
     <field name="win.eventdata.privilegeList">^SeTcbPrivilege$</field>
     <description>Known legitimate LSASS sensitive privilege use</description>

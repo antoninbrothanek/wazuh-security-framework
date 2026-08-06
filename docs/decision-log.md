@@ -141,3 +141,44 @@ All alternatives were rejected for the portable framework baseline. Customer-spe
 - original audit state was restored.
 
 **Result:** Accepted. Stock coverage retained without generic email.
+
+---
+
+### 2026-08-06
+**Module:** Windows Privileged Group Management
+
+**Decision:** Do not perform separate laboratory tests for rules `102202` (Print Operators) and `102203` (Replicator).
+
+**Reason:** Both rules use the same already validated parent-rule and matching structure as the other privileged-group rules. Their only material difference is the monitored group identifier. Repeating the same add-member test would not validate a new mechanism or add meaningful technical evidence.
+
+**Alternatives:**
+
+- individually add a test user to Print Operators and Replicator;
+- leave both rules indefinitely marked as pending individual tests.
+
+Both alternatives were rejected as unnecessary repetition.
+
+**Evidence:**
+
+- six sibling privileged-group rules were validated with real membership changes;
+- the shared rule structure, severity and email behavior are already confirmed;
+- rules `102202` and `102203` differ only in their target group matching data.
+
+**Result:** Accepted. The rules remain implemented; separate laboratory validation is intentionally not planned.
+
+---
+
+### 2026-08-06
+**Module:** Project Roadmap
+
+**Decision:** Close Windows Privilege Escalation for its approved scope and activate NTLM Monitoring v0.4.0 as the next milestone.
+
+**Reason:** All approved Windows Privilege Escalation events have a validated or explicit disposition. Event 4703 is deliberately deferred and does not block completion. NTLM Monitoring is the next explicitly selected project module.
+
+**Evidence:**
+
+- synchronized `PROJECT-STATE.md`, roadmap and privilege-escalation documentation;
+- tested stock and custom behavior through Event 4719;
+- explicit user approval to begin NTLM Monitoring.
+
+**Result:** Accepted. NTLM work begins with scope definition and evidence collection. No NTLM custom rule is approved yet.

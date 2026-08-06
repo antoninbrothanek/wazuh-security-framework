@@ -32,4 +32,58 @@
     </group>
   </rule>
 
+  <!--
+    Event ID: 4673
+    Windows Security Audit
+    A privileged service was called
+
+    Prerequisite:
+      Advanced Audit Policy ->
+      Privilege Use ->
+      Audit Sensitive Privilege Use = Success
+
+    Validation state:
+      - successful Event 4673 ingestion verified on SERVER01 and server02;
+      - stock rule 60107 covers AUDIT_FAILURE only;
+      - the verified legitimate success profile below is suppressed;
+      - rule 111101 remains pending positive validation against a different
+        real Event 4673 profile before it can be marked TESTED.
+  -->
+
+  <!-- Internal base rule for successful Event 4673 events. -->
+  <rule id="111100" level="0">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4673$</field>
+    <description>Windows successful sensitive privilege use</description>
+  </rule>
+
+  <!-- Alert by default for a successful Event 4673 profile. No email. -->
+  <rule id="111101" level="8">
+    <if_sid>111100</if_sid>
+    <description>Unexpected sensitive privilege use by $(win.eventdata.subjectDomainName)\$(win.eventdata.subjectUserName): $(win.eventdata.privilegeList), process $(win.eventdata.processName), service $(win.eventdata.service)</description>
+    <group>
+      windows,
+      windows_security,
+      privilege_escalation,
+      sensitive_privilege_use,
+      unexpected_privilege_use,
+    </group>
+  </rule>
+
+  <!--
+    Suppress the verified legitimate LocalSystem LSASS profile:
+      SID:       S-1-5-18
+      Process:   C:\Windows\System32\lsass.exe
+      Service:   LsaRegisterLogonProcess()
+      Privilege: SeTcbPrivilege
+  -->
+  <rule id="111102" level="0">
+    <if_sid>111101</if_sid>
+    <field name="win.eventdata.subjectUserSid">^S-1-5-18$</field>
+    <field name="win.eventdata.processName" type="pcre2">(?i)^C:\\Windows\\System32\\lsass\.exe$</field>
+    <field name="win.eventdata.service" type="pcre2">^LsaRegisterLogonProcess\(\)$</field>
+    <field name="win.eventdata.privilegeList">^SeTcbPrivilege$</field>
+    <description>Known legitimate LSASS sensitive privilege use</description>
+  </rule>
+
 </group>

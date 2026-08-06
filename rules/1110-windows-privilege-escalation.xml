@@ -52,7 +52,8 @@
       - Event 4964 generation verified on server02;
       - live windows_eventchannel ingestion verified;
       - no active stock Wazuh rule for Event 4964 was found;
-      - rule 111201 is added for controlled positive and noise testing;
+      - positive detection for human accounts verified;
+      - LocalSystem and computer-account exclusions verified;
       - email is intentionally not enabled.
   -->
 
@@ -80,6 +81,45 @@
       privilege_escalation,
       privileged_logon,
       special_groups,
+    </group>
+  </rule>
+
+  <!--
+    Event ID: 1102
+    Windows Security Audit
+    The Security audit log was cleared
+
+    Stock parent:
+      63103 - The audit log was cleared
+
+    MITRE ATT&CK:
+      T1070.001 - Indicator Removal: Clear Windows Event Logs
+
+    Validation state:
+      - Event 1102 generated with Clear-EventLog;
+      - live windows_eventchannel ingestion verified;
+      - stock rule 63103 matched at level 5;
+      - account identity is present only in win.system.message
+        for the observed Event version;
+      - custom child rule raises severity to level 12;
+      - immediate email notification is enabled.
+  -->
+
+  <rule id="111400" level="12">
+    <if_sid>63103</if_sid>
+    <description>Critical: Windows Security audit log was cleared on $(win.system.computer)</description>
+    <options>alert_by_email</options>
+
+    <mitre>
+      <id>T1070.001</id>
+    </mitre>
+
+    <group>
+      windows,
+      windows_security,
+      privilege_escalation,
+      defense_evasion,
+      logs_cleared,
     </group>
   </rule>
 

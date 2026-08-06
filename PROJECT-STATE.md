@@ -143,7 +143,7 @@ Confirmed behavior:
 Tested stock Wazuh rules:
 
 | Windows Event ID | Wazuh rule | Meaning | Status |
-|---|---:|---|---|
+|---:|---:|---|---|
 | 4728 | 60141 | Global security group member added | TESTED - STOCK |
 | 4729 | 60142 | Global security group member removed | TESTED - STOCK |
 | 4732 | 60144 | Local security group member added | TESTED - STOCK |
@@ -173,12 +173,14 @@ Custom rules:
 |---|---|---:|---|
 | 102200 | Account Operators | 4732 | TESTED |
 | 102201 | Server Operators | 4732 | TESTED |
-| 102202 | Print Operators | 4732 | IMPLEMENTED - individual test pending |
-| 102203 | Replicator | 4732 | IMPLEMENTED - individual test pending |
+| 102202 | Print Operators | 4732 | IMPLEMENTED — separate laboratory test not planned |
+| 102203 | Replicator | 4732 | IMPLEMENTED — separate laboratory test not planned |
 | 102204 | Key Admins | 4728 | TESTED |
 | 102205 | Enterprise Key Admins | 4756 | TESTED |
 | 102206 | Organization Management | 4756 | TESTED |
 | 102207 | Exchange Trusted Subsystem | 4756 | TESTED |
+
+Rules `102202` and `102203` use the same validated rule structure and stock parent behavior as the other tested privileged-group rules. Only the monitored group identifiers differ. Separate tests were explicitly rejected because they would repeat an already validated mechanism without adding new technical evidence.
 
 ---
 
@@ -190,7 +192,7 @@ Primary files:
 - `modules/windows-privilege-escalation/privilege-escalation-matrix.md`
 - `docs/windows-privilege-escalation/`
 
-Status: ACTIVE. The currently validated event baseline is synchronized below.
+Status: COMPLETE for the approved event baseline. Event 4703 remains explicitly deferred and does not block module completion.
 
 | Event ID | Meaning | Coverage | Status | Email policy |
 |---:|---|---|---|---|
@@ -225,15 +227,19 @@ Important decisions:
 
 # Current work
 
-## Active milestone: Windows Privilege Escalation documentation synchronization
+## Active milestone: NTLM Monitoring v0.4.0
 
-The event work completed through Event 4719 has been validated and documented. The authoritative project state, matrix, roadmap and decision log are being synchronized before selecting the next event or module.
+The Windows Privilege Escalation module is closed for its approved scope. The next approved module is NTLM Monitoring.
 
-Immediate next step after documentation synchronization:
+Initial NTLM work must begin with documentation and evidence collection, not custom rules:
 
-1. review the updated module matrix;
-2. identify the next approved work item from the repository;
-3. do not introduce a new Event ID until the current documentation synchronization is committed and verified.
+1. define the module scope and completion criteria;
+2. inventory relevant Windows NTLM event sources and active stock Wazuh coverage;
+3. inspect existing real Event 4776 and related authentication data;
+4. classify observed NTLM scenarios before approving custom detections;
+5. define notification policy only after measured validation.
+
+No new NTLM rule is approved yet.
 
 ---
 

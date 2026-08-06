@@ -14,32 +14,22 @@ The roadmap describes planned project progression. `PROJECT-STATE.md` remains th
 
 ## Immediate next work
 
-The Windows Privilege Escalation event baseline has been validated and synchronized through Event 4719.
+The Windows Privilege Escalation module is complete for its approved event baseline. Event 4703 remains explicitly deferred pending a real production sample and does not block module completion.
 
-Completed or explicitly disposed events:
+The next approved milestone is:
 
-- 4672 - stock telemetry;
-- 4673 - analyzed, no generic custom success rule;
-- 4674 - analyzed, no generic custom rule;
-- 4688 - stock telemetry;
-- 4697 - custom rule 111000;
-- 7045 - stock rule 61138;
-- 4964 - custom rule 111201;
-- 1102 - custom rule 111400 with immediate email;
-- 4698 - stock telemetry;
-- 4703 - deferred pending a real sample;
-- 4719 - stock rule 60112.
+## v0.4.0 NTLM Monitoring
 
-Before starting another Event ID or module:
+Initial work must begin with scope definition and evidence collection:
 
-1. review `PROJECT-STATE.md`;
-2. select one approved work item;
-3. update this roadmap when the next milestone is explicitly chosen;
-4. do not introduce new telemetry sources or architecture without approval.
+1. define the NTLM monitoring scope and completion criteria;
+2. inventory relevant Windows event sources;
+3. inspect active stock Wazuh coverage;
+4. review existing real Event 4776 and related authentication data;
+5. classify observed scenarios before creating custom rules;
+6. define notification and dashboard requirements only after validation.
 
-Planning document:
-
-- `modules/windows-privilege-escalation/privilege-escalation-matrix.md`
+No NTLM custom rule is approved yet.
 
 ---
 
@@ -83,7 +73,7 @@ Goal: validate high-value Windows privilege-escalation and defense-evasion event
 - [x] 4698 - scheduled-task creation telemetry
 - [~] 4703 - deferred until a real production sample exists
 - [x] 4719 - audit-policy change
-- [~] Final module-scope and next-milestone selection
+- [x] Final module-scope and next-milestone selection
 
 Validated custom rules:
 
@@ -91,11 +81,13 @@ Validated custom rules:
 - 111201 - human-account special-group logon;
 - 111400 - Security audit log cleared, immediate email.
 
+Status: COMPLETE for the approved scope.
+
 ---
 
 ## v0.3.0 Kerberos
 
-Current implementation exists ahead of this roadmap milestone and will be consolidated here.
+Current implementation exists ahead of this roadmap milestone and will be consolidated later.
 
 - [x] Event 4771 baseline detection
 - [x] 0x18 invalid-password classification
@@ -110,12 +102,14 @@ Current implementation exists ahead of this roadmap milestone and will be consol
 
 ## v0.4.0 NTLM
 
-- [ ] NTLM monitoring scope
+- [~] NTLM monitoring scope
 - [ ] Event analysis
 - [ ] Detection rules
 - [ ] Notification policy
 - [ ] Dashboards
 - [ ] Documentation
+
+Current status: ACTIVE MILESTONE. Scope definition and evidence collection are the first approved work item.
 
 ---
 
@@ -152,7 +146,7 @@ Several Active Directory management detections have already been implemented and
 - [x] Password Management baseline: 4723, 4724
 - [x] Group membership stock-rule validation: 4728, 4729, 4732, 4733, 4756, 4757
 - [x] Privileged Group Management policy and custom rules
-- [~] Privileged Group Management test coverage: six custom rules tested; Print Operators and Replicator remain implemented but not individually tested
+- [x] Privileged Group Management mechanism validated; separate Print Operators and Replicator tests intentionally not planned
 - [ ] GPO Monitoring
 - [ ] AD replication monitoring
 - [ ] Active Directory dashboards

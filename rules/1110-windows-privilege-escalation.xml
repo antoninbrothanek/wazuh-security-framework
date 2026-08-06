@@ -99,15 +99,14 @@
       - Event 1102 generated with Clear-EventLog;
       - live windows_eventchannel ingestion verified;
       - stock rule 63103 matched at level 5;
-      - account identity is present only in win.system.message
-        for the observed Event version;
+      - account identity was decoded under win.logFileCleared.*;
       - custom child rule raises severity to level 12;
-      - immediate email notification is enabled.
+      - immediate email notification was verified.
   -->
 
   <rule id="111400" level="12">
     <if_sid>63103</if_sid>
-    <description>Critical: Windows Security audit log was cleared on $(win.system.computer)</description>
+    <description>Critical: Windows Security audit log was cleared on $(win.system.computer) by $(win.logFileCleared.subjectDomainName)\$(win.logFileCleared.subjectUserName)</description>
     <options>alert_by_email</options>
 
     <mitre>

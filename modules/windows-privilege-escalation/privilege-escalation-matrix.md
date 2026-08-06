@@ -20,7 +20,7 @@ No custom Wazuh rule is approved merely because an event is security-relevant. E
 | 4688 | Security | A new process was created | Primary process context for escalation chains; not a generic escalation alert | Critical | Process auditing, command-line inclusion, decoded Wazuh fields and stock-rule coverage verified | TESTED |
 | 4697 | Security | A service was installed in the system | Persistence or privilege-escalation technique; identifies the installing account | Critical | Controlled service creation, Security log, live Wazuh ingestion, stock-rule search and custom rule validation completed | TESTED – CUSTOM RULE 111000 |
 | 7045 | System | A service was installed in the system | Complementary service-installation evidence from the System log | Critical | Compared with Event 4697 and validated against stock Wazuh coverage | TESTED – STOCK RULE 61138 |
-| 4964 | Security | Special groups were assigned to a new logon | Enrichment for sensitive group membership in a logon token | Medium | Confirm audit-policy requirements, generate a real event if feasible and evaluate usefulness against 4672 | PLANNED |
+| 4964 | Security | Special groups were assigned to a new logon | Alert when a human account logs on with a configured special-group SID | Medium | Audit policy, GPO registry configuration, live event generation, stock-rule search and positive/negative custom-rule validation completed | TESTED – CUSTOM RULE 111201 |
 | 1102 | Security | The audit log was cleared | Strong anti-forensics indicator | Critical | Perform only as an approved final controlled test; verify stock rule, alert level and email policy | PLANNED |
 
 ## Event dispositions
@@ -40,6 +40,7 @@ Current dispositions:
 | 4673 | Telemetry and customer-specific baseline only; stock failure rule retained; no portable custom success rule |
 | 4688 | High-volume telemetry and context for narrowly defined detections |
 | 4697 | Standalone custom alert, level 10 |
+| 4964 | Standalone custom alert for human logons containing a configured SpecialGroups SID, level 10 |
 | 7045 | Complementary stock alert, level 5 |
 
 ## Validation workflow
@@ -68,6 +69,7 @@ Expected systems:
 - test activity must use controlled accounts and reversible changes.
 
 The Event 4697/7045 validation was performed on `SERVER01.pco.cz`.
+The Event 4964 validation was performed on `server02.pco.cz` and verified against system and computer-account activity on both domain controllers.
 
 ## Safety constraints
 
@@ -163,6 +165,90 @@ Final framework policy:
 - future customer-specific rules require measured baseline data and an explicit approved requirement.
 
 The final decision is also recorded in `docs/decision-log.md`.
+
+## Event ID 4964 – Special Groups Assigned to a New Logon
+
+### Status
+
+TESTED – CUSTOM RULE 111201
+
+### Required configuration
+
+Validated audit policy:
+
+```text
+Audit Special Logon: Success
+```
+
+The monitored group list is deployed through Group Policy Preferences:
+
+```text
+Computer Configuration
+└── Preferences
+    └── Windows Settings
+        └── Registry
+```
+
+Validated registry value:
+
+```text
+HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Audit
+SpecialGroups
+Type: REG_SZ
+Value: S-1-5-32-544
+```
+
+The value `S-1-5-32-544` represents `Builtin\Administrators`.
+
+### Recommended baseline
+
+Portable default:
+
+- `Builtin\Administrators` (`S-1-5-32-544`).
+
+Recommended Active Directory extension:
+
+- Domain Admins;
+- Enterprise Admins;
+- Schema Admins;
+- customer-specific Tier 0 administrative groups.
+
+Domain-specific SIDs must be obtained from the customer's Active Directory and configured through Group Policy. They are not hard-coded in the portable Wazuh XML rule.
+
+### Wazuh validation
+
+- live decoder: `windows_eventchannel`;
+- no active stock rule for Event ID 4964 was found;
+- rule `111200`: internal level 0 base;
+- rule `111201`: level 10 alert for a human account;
+- generic email: disabled pending operational review.
+
+Rule `111201` excludes:
+
+- `TargetUserSid = S-1-5-18`;
+- account names ending in `$`.
+
+Positive validation:
+
+```text
+PCO\Administrator
+Target SID: S-1-5-21-3244488161-1769690587-3059601223-500
+SidList: %{S-1-5-32-544}
+Rule: 111201
+Level: 10
+```
+
+Negative validation confirmed no alert for:
+
+- `NT AUTHORITY\SYSTEM`;
+- `PCO\SERVER01$`;
+- `PCO\SERVER02$`;
+- other LocalSystem records represented by SID `S-1-5-18`.
+
+Detailed documentation:
+
+- `docs/windows-privilege-escalation/event-4964-special-groups.md`
+- `rules/1110-windows-privilege-escalation.xml`
 
 ## Event ID 4688 – Process Creation
 
@@ -316,10 +402,11 @@ No correlation will be implemented until the individual source events and decode
 
 - No generic email for 4672, 4673, 4674, 4688 or 4964.
 - Event 4697 is a level 10 standalone alert. Email remains pending an explicit production-noise review and policy decision.
+- Event 4964 is a level 10 standalone alert. Email remains disabled pending customer-specific review of the configured SpecialGroups scope and resulting alert volume.
 - Event 7045 remains covered by stock rule 61138 and does not need a duplicate custom rule.
 - Security log clearing is a candidate for immediate email, but the final policy must be based on stock-rule behavior and controlled validation.
 - Correlation alerts may receive email only after controlled validation and an explicit policy decision.
 
 ## Next work item
 
-Continue with the next explicitly selected Windows Privilege Escalation event. Event 4673 is closed for the portable framework baseline unless a future customer-specific requirement reopens it.
+Continue with Event ID 4674. First confirm audit-policy state, generate a controlled event and inspect stock Wazuh coverage before proposing any custom rule.

@@ -1,6 +1,6 @@
 # Windows Privilege Escalation Matrix
 
-Last updated: 2026-07-30
+Last updated: 2026-08-06
 
 ## Purpose
 
@@ -15,7 +15,7 @@ No custom Wazuh rule is approved merely because an event is security-relevant. E
 | Event ID | Log | Meaning | Detection role | Initial priority | Planned validation | Status |
 |---:|---|---|---|---|---|---|
 | 4672 | Security | Special privileges assigned to a new logon | Enrichment and correlation for privileged sessions | Medium | Reuse the validated Windows Authentication result and correlate by Logon ID where useful | TESTED AS TELEMETRY |
-| 4673 | Security | A privileged service was called | Possible abuse of sensitive privileges; context dependent | High | Enable required audit policy, generate controlled events and inspect decoded fields and stock rules | PLANNED |
+| 4673 | Security | A privileged service was called | Baseline-based detection of unexpected sensitive privilege use | High | Real-event baseline, live Wazuh ingestion, stock-rule review and benign-profile suppression validated; positive alert test still pending | PARTIALLY TESTED |
 | 4674 | Security | An operation was attempted on a privileged object | Possible sensitive-object or privilege abuse; potentially noisy | High | Generate controlled ownership/ACL operations and determine whether the event provides actionable context | PLANNED |
 | 4688 | Security | A new process was created | Primary process context for escalation chains; not a generic escalation alert | Critical | Process auditing, command-line inclusion, decoded Wazuh fields and stock-rule coverage verified | TESTED |
 | 4697 | Security | A service was installed in the system | Persistence or privilege-escalation technique; identifies the installing account | Critical | Controlled service creation, Security log, live Wazuh ingestion, stock-rule search and custom rule validation completed | TESTED – CUSTOM RULE 111000 |
@@ -37,6 +37,7 @@ Current dispositions:
 | Event ID | Disposition |
 |---:|---|
 | 4672 | Telemetry and correlation enrichment only |
+| 4673 | Baseline-based alert for profiles that differ from the verified LocalSystem LSASS pattern; benign-profile suppression tested, positive alert validation pending |
 | 4688 | High-volume telemetry and context for narrowly defined detections |
 | 4697 | Standalone custom alert, level 10 |
 | 7045 | Complementary stock alert, level 5 |
@@ -76,6 +77,146 @@ The Event 4697/7045 validation was performed on `SERVER01.pco.cz`.
 - Process-creation rules must not alert solely on common binaries such as `powershell.exe`, `cmd.exe`, `reg.exe`, `net.exe` or `sc.exe`; command line, parent process, user, integrity and surrounding events must be considered.
 - Events 4673 and 4674 may be high-volume and must not be enabled or alerted on broadly before noise is measured.
 - Event 4672 remains enrichment/correlation telemetry unless a new documented scenario proves that a narrower rule is required.
+
+## Event ID 4673 – Sensitive Privilege Use
+
+### Status
+
+PARTIALLY TESTED
+
+### Required audit policy
+
+Event ID 4673 requires:
+
+```text
+Computer Configuration
+└── Policies
+    └── Windows Settings
+        └── Security Settings
+            └── Advanced Audit Policy Configuration
+                └── Audit Policies
+                    └── Privilege Use
+                        └── Audit Sensitive Privilege Use
+```
+
+Validated setting:
+
+```text
+Success: Enabled
+```
+
+### Microsoft security guidance
+
+Microsoft documents Event 4673 as a context-dependent sensitive privilege-use event. The recommended monitoring model is not to alert on every event, but to identify deviations from expected combinations of:
+
+- account or security identifier;
+- privilege name;
+- process name and path;
+- service name;
+- expected system role and administrative behavior.
+
+Microsoft's reference example uses the same normal system profile observed in this environment:
+
+```text
+SubjectUserSid: S-1-5-18
+ProcessName: C:\Windows\System32\lsass.exe
+Service: LsaRegisterLogonProcess()
+PrivilegeList: SeTcbPrivilege
+```
+
+This supports a baseline-based design: suppress a fully verified benign profile and alert on other successful Event 4673 profiles for investigation. It does not prove that all non-matching profiles are malicious.
+
+### Observed production baseline
+
+Observed counts from `archives.json`:
+
+- `SERVER01`: 1316 events;
+- `server02`: 77 events.
+
+All observed events shared the same profile:
+
+```text
+SubjectUserSid: S-1-5-18
+SubjectUserName: machine account for the host
+ProcessName: C:\\Windows\\System32\\lsass.exe
+Service: LsaRegisterLogonProcess()
+PrivilegeList: SeTcbPrivilege
+```
+
+A 24-hour Windows-log sample on `SERVER01` contained 495 events with this same combination.
+
+A controlled `robocopy /B` test did not generate a different Event 4673 profile. Only the established LSASS/SeTcbPrivilege pattern appeared. This test therefore must not be cited as a positive Event 4673 generation method.
+
+### Stock Wazuh coverage
+
+The active stock ruleset contains rule `60107`:
+
+- parent: `60104` (`AUDIT_FAILURE`);
+- Event ID: `4673`;
+- level: `4`;
+- description: `Failed attempt to perform a privileged operation`.
+
+Therefore, stock rule `60107` covers failed Event 4673 operations only. Successful Event 4673 events are received and archived but do not create a stock alert.
+
+Live ingestion was confirmed in:
+
+```text
+/var/ossec/logs/archives/archives.json
+```
+
+Verified decoder for live ingestion:
+
+```text
+windows_eventchannel
+```
+
+### Custom rules
+
+File:
+
+```text
+rules/1110-windows-privilege-escalation.xml
+```
+
+Rules:
+
+- `111100` – internal base for successful Event 4673;
+- `111101` – level 8 alert for a successful Event 4673 profile not suppressed by a known-benign child rule; no email;
+- `111102` – level 0 suppression for the verified LocalSystem LSASS profile.
+
+The process-path matcher accepts the escaped path form seen in the live Wazuh data:
+
+```text
+C:\\Windows\\System32\\lsass.exe
+```
+
+### Negative-path validation
+
+The first suppression regex did not match the live escaped `processName` value, so legitimate LSASS events incorrectly produced rule `111101`. The regex was corrected and redeployed.
+
+After correction:
+
+- new Event 4673 records remained present in `archives.json`;
+- the same records no longer carried rule `111101`;
+- an OpenSearch query for rule `111101` after `2026-08-06T08:47:00Z` returned zero hits;
+- no email notification was generated.
+
+Conclusion: rule `111102` successfully suppresses the verified LocalSystem LSASS baseline.
+
+### Positive-path validation state
+
+Rule `111101` is not yet marked TESTED.
+
+A real successful Event 4673 with a different account, process, service or privilege profile has not yet been generated reproducibly. The failed `robocopy /B` attempt confirmed that speculative test commands must not be treated as validated event-generation procedures.
+
+The next step is to identify a documented and safe operation that reliably generates a non-baseline successful Event 4673, then validate rule `111101` through live Windows EventChannel ingestion.
+
+### Operational conclusion
+
+- Do not create a generic high-severity alert for every Event 4673.
+- Use a baseline-based model and treat non-matching profiles as investigation candidates, not automatically as confirmed attacks.
+- The verified LSASS profile is suppressed.
+- Rule `111101` remains level 8 and without email until a real positive test and production-noise review are complete.
 
 ## Event ID 4688 – Process Creation
 
@@ -276,4 +417,4 @@ No correlation will be implemented until the individual source events and decode
 
 ## Next work item
 
-Continue with the next explicitly selected Windows Privilege Escalation event. Do not add another custom rule until the source event, Wazuh ingestion and stock-rule coverage have been validated using the documented workflow.
+Identify a documented, safe and reproducible positive test for Event 4673 rule `111101`. Do not mark it TESTED until a real non-baseline Event 4673 is generated and confirmed through live Windows EventChannel ingestion.

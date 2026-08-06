@@ -32,4 +32,55 @@
     </group>
   </rule>
 
+  <!--
+    Event ID: 4964
+    Windows Security Audit
+    Special groups have been assigned to a new logon
+
+    Prerequisites:
+      Advanced Audit Policy ->
+      Logon/Logoff ->
+      Audit Special Logon = Success
+
+      HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Audit
+      SpecialGroups (REG_SZ) contains one or more monitored group SIDs.
+
+    Initial validated configuration:
+      S-1-5-32-544 - BUILTIN\Administrators
+
+    Validation state:
+      - Event 4964 generation verified on server02;
+      - live windows_eventchannel ingestion verified;
+      - no active stock Wazuh rule for Event 4964 was found;
+      - rule 111201 is added for controlled positive and noise testing;
+      - email is intentionally not enabled.
+  -->
+
+  <!-- Internal base rule for Event ID 4964. -->
+  <rule id="111200" level="0">
+    <if_sid>60103</if_sid>
+    <field name="win.system.eventID">^4964$</field>
+    <description>Special groups assigned to a new logon</description>
+  </rule>
+
+  <!--
+    Alert only for human accounts.
+    Excludes LocalSystem and account names ending in $, which represent
+    computer accounts in Active Directory.
+  -->
+  <rule id="111201" level="10">
+    <if_sid>111200</if_sid>
+    <field name="win.eventdata.targetUserSid" negate="yes">^S-1-5-18$</field>
+    <field name="win.eventdata.targetUserName" type="pcre2" negate="yes">(?i)\$$</field>
+    <description>Special-group logon by $(win.eventdata.targetDomainName)\$(win.eventdata.targetUserName): $(win.eventdata.sidList)</description>
+
+    <group>
+      windows,
+      windows_security,
+      privilege_escalation,
+      privileged_logon,
+      special_groups,
+    </group>
+  </rule>
+
 </group>

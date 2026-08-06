@@ -143,6 +143,20 @@ The user decides whether to:
 
 When the user says to stop scope expansion or return to the core task, do so immediately without arguing for the broader design.
 
+## Rule 13 — Validate live stock behavior before changing audit policy
+
+When an Event ID already appears in live Wazuh data or matches an active stock rule, do not change Group Policy, Advanced Audit Policy or registry-based audit configuration based only on an assumed audit dependency.
+
+Before proposing an audit-policy change:
+
+1. inspect the active stock rule and its parent chain;
+2. confirm the event's live provider, channel, decoder and decoded fields;
+3. identify which hosts already generate the event;
+4. compare the effective audit policy on the relevant host role;
+5. use authoritative vendor documentation when the dependency remains unclear.
+
+A missing audit setting on one host does not prove that the event requires that setting universally or that another host role is configured the same way.
+
 ## Working checklist
 
 Before proposing or implementing a change, verify:
@@ -153,6 +167,7 @@ Before proposing or implementing a change, verify:
 - [ ] I have not expanded scope.
 - [ ] I know which claims are verified and which are hypotheses.
 - [ ] I checked active stock Wazuh coverage.
+- [ ] I inspected live stock-rule behavior before proposing audit-policy changes.
 - [ ] I have real decoded fields or authoritative documentation.
 - [ ] I am changing only approved files.
 - [ ] I will not mark the item complete without evidence.

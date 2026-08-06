@@ -1,6 +1,6 @@
 # Wazuh Security Framework Roadmap
 
-Last reviewed: 2026-07-29
+Last reviewed: 2026-08-06
 
 ## Status model
 
@@ -12,24 +12,34 @@ The roadmap describes planned project progression. `PROJECT-STATE.md` remains th
 
 ---
 
-## Immediate next work: Windows Privilege Escalation
+## Immediate next work
 
-The next project session will begin the Windows Privilege Escalation module.
+The Windows Privilege Escalation event baseline has been validated and synchronized through Event 4719.
+
+Completed or explicitly disposed events:
+
+- 4672 - stock telemetry;
+- 4673 - analyzed, no generic custom success rule;
+- 4674 - analyzed, no generic custom rule;
+- 4688 - stock telemetry;
+- 4697 - custom rule 111000;
+- 7045 - stock rule 61138;
+- 4964 - custom rule 111201;
+- 1102 - custom rule 111400 with immediate email;
+- 4698 - stock telemetry;
+- 4703 - deferred pending a real sample;
+- 4719 - stock rule 60112.
+
+Before starting another Event ID or module:
+
+1. review `PROJECT-STATE.md`;
+2. select one approved work item;
+3. update this roadmap when the next milestone is explicitly chosen;
+4. do not introduce new telemetry sources or architecture without approval.
 
 Planning document:
 
 - `modules/windows-privilege-escalation/privilege-escalation-matrix.md`
-
-Initial scope:
-
-- Event 4672 as previously validated correlation/enrichment telemetry;
-- Events 4673 and 4674 for privileged service and privileged object operations;
-- Event 4688 for process creation and escalation-chain context;
-- Events 4697 and 7045 for service installation;
-- Event 4964 for special-group logon context;
-- Event 1102 for Security audit log clearing.
-
-First planned work item: validate Event 4688 collection, command-line auditing, decoded Wazuh fields and active stock-rule coverage before creating any custom rule.
 
 ---
 
@@ -48,29 +58,38 @@ First planned work item: validate Event 4688 collection, command-line auditing, 
 Goal: establish a tested baseline for domain-wide Windows authentication monitoring with low alert noise and explicit notification policy.
 
 - [x] Authentication architecture and design principles
-- [~] Event ID analysis
-- [~] Detection rules
-- [~] Email notification policy
-- [~] Test scenarios
-- [~] Documentation
-- [ ] Windows Authentication dashboard
+- [x] Event ID analysis
+- [x] Detection rules for the approved scope
+- [x] Email notification policy
+- [x] Test scenarios
+- [x] Documentation
+- [x] Windows Authentication dashboard
 
-Authentication baseline status:
+Status: COMPLETE.
 
-- [ ] 4624 - Successful logon: validate stock detection and define security use cases
-- [~] 4625 - Failed logon: stock detection validated; incorrect-password classification and correlation implemented; remaining failure classifications to review
-- [ ] 4634 - Logoff: validate stock detection; no email expected
-- [ ] 4648 - Explicit credentials: analyze event and stock Wazuh coverage; custom rule only if required
-- [ ] 4672 - Special privileges assigned: validate event and standard rule 67028 on target Wazuh
-- [x] 4740 - Account lockout: custom notification rule 101200 tested; email enabled
+---
 
-Completion criteria for v0.2.0:
+## Windows Privilege Escalation
 
-1. All baseline events above are classified as stock, custom, or intentionally ignored.
-2. Every custom rule has a real-event test.
-3. Email policy is documented for each security scenario.
-4. Authentication matrix and module README match production behavior.
-5. Windows Authentication dashboard is implemented and validated.
+Goal: validate high-value Windows privilege-escalation and defense-evasion events while avoiding generic high-noise detections.
+
+- [x] 4672 - privileged-logon telemetry
+- [x] 4673 - sensitive privilege-use analysis
+- [x] 4674 - privileged-object operation analysis
+- [x] 4688 - process-creation telemetry
+- [x] 4697 and 7045 - service installation
+- [x] 4964 - special-group logon detection
+- [x] 1102 - Security audit log clearing
+- [x] 4698 - scheduled-task creation telemetry
+- [~] 4703 - deferred until a real production sample exists
+- [x] 4719 - audit-policy change
+- [~] Final module-scope and next-milestone selection
+
+Validated custom rules:
+
+- 111000 - service installation;
+- 111201 - human-account special-group logon;
+- 111400 - Security audit log cleared, immediate email.
 
 ---
 

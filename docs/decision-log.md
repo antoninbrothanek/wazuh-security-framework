@@ -51,3 +51,93 @@ All alternatives were rejected for the portable framework baseline. Customer-spe
 - experimental suppression logic was tested but proved environment-specific rather than universally portable.
 
 **Result:** Accepted. No generic custom Event 4673 rule and no generic email notification.
+
+---
+
+### 2026-08-06
+**Module:** Windows Privilege Escalation
+
+**Decision:** Retain Event ID 4688 as stock telemetry using rule `67027`. Do not create generic alerts based only on common process names.
+
+**Reason:** The measured baseline contained high-volume legitimate activity from Windows, Exchange, Azure Arc, ESET and other services. Process names such as `powershell.exe`, `cmd.exe`, `net.exe`, `sc.exe` and `curl.exe` are not independently sufficient indicators.
+
+**Evidence:**
+
+- `Audit Process Creation` enabled;
+- command-line inclusion enabled;
+- live Wazuh ingestion and decoded process, parent and command-line fields confirmed;
+- stock rule `67027`, level 3, matched real events;
+- measured production process baseline reviewed.
+
+**Result:** Accepted. Event 4688 is telemetry and context for narrowly defined future detections. No generic email.
+
+---
+
+### 2026-08-06
+**Module:** Windows Privilege Escalation
+
+**Decision:** Use custom rule `111400`, level 12, with immediate email for Security Event ID 1102.
+
+**Reason:** Clearing the Security audit log is a strong anti-forensics event. Stock rule `63103`, level 5, was considered insufficient for the selected notification policy.
+
+**Evidence:**
+
+- controlled `Clear-EventLog -LogName Security` test;
+- live decoder fields confirmed, including `win.logFileCleared.subjectUserName` and domain;
+- rule `111400` matched a real event;
+- alert level 12 and `mail: true` confirmed;
+- email notification delivered successfully.
+
+**Result:** Accepted. Immediate email remains enabled for rule `111400`.
+
+---
+
+### 2026-08-06
+**Module:** Windows Privilege Escalation
+
+**Decision:** Retain Event ID 4698 as stock telemetry using rule `60228`. Do not create a generic scheduled-task child rule.
+
+**Reason:** Real events included legitimate Lenovo Vantage, OneDrive and SoftLanding tasks. A portable generic rule would require environment-specific allowlists or suspicious action criteria not yet approved.
+
+**Evidence:**
+
+- live Event 4698 ingestion from `TERMINALSERVER` and `TERMINAL2`;
+- stock rule `60228`, level 4, matched the events;
+- task-name baseline reviewed.
+
+**Result:** Accepted. No generic custom rule and no generic email. Persistence-specific detection requires a separate approved work item.
+
+---
+
+### 2026-08-06
+**Module:** Windows Privilege Escalation
+
+**Decision:** Defer Event ID 4703 until a real production sample is available.
+
+**Reason:** The relevant audit policy was enabled, but no Event 4703 was found in live archives and no active stock Windows rule was identified. The project will not introduce an artificial program solely to force the event.
+
+**Evidence:**
+
+- `Authorization Policy Change`: Success;
+- archive search returned no Event 4703;
+- active stock-rule search returned no Windows Event 4703 match.
+
+**Result:** Accepted. No custom rule and no email. Reopen only with a real sample.
+
+---
+
+### 2026-08-06
+**Module:** Windows Privilege Escalation
+
+**Decision:** Use stock rule `60112`, level 8, for Event ID 4719. Do not add a duplicate child rule or generic email.
+
+**Reason:** The stock rule correctly detected both enabling and restoring a test audit subcategory and included the responsible account and policy-change context.
+
+**Evidence:**
+
+- controlled change of `Other Object Access Events` from `No Auditing` to Success and back;
+- Windows generated `Success added` and `Success removed` Event 4719 records;
+- Wazuh matched rule `60112`, level 8, for both events;
+- original audit state was restored.
+
+**Result:** Accepted. Stock coverage retained without generic email.

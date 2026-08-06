@@ -15,7 +15,7 @@ No custom Wazuh rule is approved merely because an event is security-relevant. E
 | Event ID | Log | Meaning | Detection role | Initial priority | Planned validation | Status |
 |---:|---|---|---|---|---|---|
 | 4672 | Security | Special privileges assigned to a new logon | Enrichment and correlation for privileged sessions | Medium | Reuse the validated Windows Authentication result and correlate by Logon ID where useful | TESTED AS TELEMETRY |
-| 4673 | Security | A privileged service was called | Baseline-based detection of unexpected sensitive privilege use | High | Real-event baseline, live Wazuh ingestion, stock-rule review and benign-profile suppression validated; positive alert test still pending | PARTIALLY TESTED |
+| 4673 | Security | A privileged service was called | Context-dependent privilege-use telemetry | High | Audit policy, real-event baseline, Wazuh ingestion and stock-rule behavior verified | ANALYZED – NO GENERIC CUSTOM RULE |
 | 4674 | Security | An operation was attempted on a privileged object | Possible sensitive-object or privilege abuse; potentially noisy | High | Generate controlled ownership/ACL operations and determine whether the event provides actionable context | PLANNED |
 | 4688 | Security | A new process was created | Primary process context for escalation chains; not a generic escalation alert | Critical | Process auditing, command-line inclusion, decoded Wazuh fields and stock-rule coverage verified | TESTED |
 | 4697 | Security | A service was installed in the system | Persistence or privilege-escalation technique; identifies the installing account | Critical | Controlled service creation, Security log, live Wazuh ingestion, stock-rule search and custom rule validation completed | TESTED – CUSTOM RULE 111000 |
@@ -37,7 +37,7 @@ Current dispositions:
 | Event ID | Disposition |
 |---:|---|
 | 4672 | Telemetry and correlation enrichment only |
-| 4673 | Baseline-based alert for profiles that differ from the verified LocalSystem LSASS pattern; benign-profile suppression tested, positive alert validation pending |
+| 4673 | Telemetry and customer-specific baseline only; stock failure rule retained; no portable custom success rule |
 | 4688 | High-volume telemetry and context for narrowly defined detections |
 | 4697 | Standalone custom alert, level 10 |
 | 7045 | Complementary stock alert, level 5 |
@@ -82,7 +82,7 @@ The Event 4697/7045 validation was performed on `SERVER01.pco.cz`.
 
 ### Status
 
-PARTIALLY TESTED
+ANALYZED – NO GENERIC CUSTOM RULE
 
 ### Required audit policy
 
@@ -105,35 +105,17 @@ Validated setting:
 Success: Enabled
 ```
 
-### Microsoft security guidance
+### Observed baseline
 
-Microsoft documents Event 4673 as a context-dependent sensitive privilege-use event. The recommended monitoring model is not to alert on every event, but to identify deviations from expected combinations of:
+Live EventChannel ingestion was confirmed from `SERVER01` and `server02` through decoder `windows_eventchannel`.
 
-- account or security identifier;
-- privilege name;
-- process name and path;
-- service name;
-- expected system role and administrative behavior.
-
-Microsoft's reference example uses the same normal system profile observed in this environment:
-
-```text
-SubjectUserSid: S-1-5-18
-ProcessName: C:\Windows\System32\lsass.exe
-Service: LsaRegisterLogonProcess()
-PrivilegeList: SeTcbPrivilege
-```
-
-This supports a baseline-based design: suppress a fully verified benign profile and alert on other successful Event 4673 profiles for investigation. It does not prove that all non-matching profiles are malicious.
-
-### Observed production baseline
-
-Observed counts from `archives.json`:
+Observed counts included:
 
 - `SERVER01`: 1316 events;
-- `server02`: 77 events.
+- `server02`: 77 events;
+- a 24-hour Windows-log sample on `SERVER01`: 495 events.
 
-All observed events shared the same profile:
+All observed successful events shared this profile:
 
 ```text
 SubjectUserSid: S-1-5-18
@@ -143,9 +125,7 @@ Service: LsaRegisterLogonProcess()
 PrivilegeList: SeTcbPrivilege
 ```
 
-A 24-hour Windows-log sample on `SERVER01` contained 495 events with this same combination.
-
-A controlled `robocopy /B` test did not generate a different Event 4673 profile. Only the established LSASS/SeTcbPrivilege pattern appeared. This test therefore must not be cited as a positive Event 4673 generation method.
+This is normal LocalSystem/LSASS activity. A controlled `robocopy /B` test did not generate a different Event 4673 profile and must not be used as a documented positive test.
 
 ### Stock Wazuh coverage
 
@@ -156,67 +136,33 @@ The active stock ruleset contains rule `60107`:
 - level: `4`;
 - description: `Failed attempt to perform a privileged operation`.
 
-Therefore, stock rule `60107` covers failed Event 4673 operations only. Successful Event 4673 events are received and archived but do not create a stock alert.
+Therefore:
 
-Live ingestion was confirmed in:
+- failed Event 4673 operations are covered by stock rule `60107`;
+- successful Event 4673 operations are received and stored in `/var/ossec/logs/archives/archives.json` but do not create a stock alert.
 
-```text
-/var/ossec/logs/archives/archives.json
-```
+### Experimental custom rules and final decision
 
-Verified decoder for live ingestion:
+Experimental rules `111100`, `111101` and `111102` were created to test a default-alert/known-benign-suppression model. The benign LSASS suppression path was validated after correcting the escaped process-path matcher.
 
-```text
-windows_eventchannel
-```
+The experimental rules were then removed from the portable framework because:
 
-### Custom rules
+- successful Event 4673 is high-volume and context dependent;
+- a universal allowlist cannot be derived from one environment;
+- other organizations may legitimately produce additional successful profiles;
+- a generic "anything different" alert could create false positives;
+- no safe and reproducible non-baseline positive test was established;
+- customer-specific baselining would be required before defining successful-event alerts.
 
-File:
+Final framework policy:
 
-```text
-rules/1110-windows-privilege-escalation.xml
-```
+- no generic custom alert for successful Event 4673;
+- no generic email notification;
+- retain successful events as telemetry for investigation and customer-specific baselining;
+- retain stock rule `60107` for failed privileged operations;
+- future customer-specific rules require measured baseline data and an explicit approved requirement.
 
-Rules:
-
-- `111100` – internal base for successful Event 4673;
-- `111101` – level 8 alert for a successful Event 4673 profile not suppressed by a known-benign child rule; no email;
-- `111102` – level 0 suppression for the verified LocalSystem LSASS profile.
-
-The process-path matcher accepts the escaped path form seen in the live Wazuh data:
-
-```text
-C:\\Windows\\System32\\lsass.exe
-```
-
-### Negative-path validation
-
-The first suppression regex did not match the live escaped `processName` value, so legitimate LSASS events incorrectly produced rule `111101`. The regex was corrected and redeployed.
-
-After correction:
-
-- new Event 4673 records remained present in `archives.json`;
-- the same records no longer carried rule `111101`;
-- an OpenSearch query for rule `111101` after `2026-08-06T08:47:00Z` returned zero hits;
-- no email notification was generated.
-
-Conclusion: rule `111102` successfully suppresses the verified LocalSystem LSASS baseline.
-
-### Positive-path validation state
-
-Rule `111101` is not yet marked TESTED.
-
-A real successful Event 4673 with a different account, process, service or privilege profile has not yet been generated reproducibly. The failed `robocopy /B` attempt confirmed that speculative test commands must not be treated as validated event-generation procedures.
-
-The next step is to identify a documented and safe operation that reliably generates a non-baseline successful Event 4673, then validate rule `111101` through live Windows EventChannel ingestion.
-
-### Operational conclusion
-
-- Do not create a generic high-severity alert for every Event 4673.
-- Use a baseline-based model and treat non-matching profiles as investigation candidates, not automatically as confirmed attacks.
-- The verified LSASS profile is suppressed.
-- Rule `111101` remains level 8 and without email until a real positive test and production-noise review are complete.
+The final decision is also recorded in `docs/decision-log.md`.
 
 ## Event ID 4688 – Process Creation
 
@@ -250,21 +196,6 @@ Validated on `SERVER01.pco.cz` on 2026-07-30.
 - Custom decoder: not required.
 - Custom base rule for all Event ID 4688 events: not required.
 
-### Verified decoded fields
-
-- `data.win.system.eventID`
-- `data.win.eventdata.subjectUserSid`
-- `data.win.eventdata.subjectUserName`
-- `data.win.eventdata.subjectDomainName`
-- `data.win.eventdata.subjectLogonId`
-- `data.win.eventdata.newProcessId`
-- `data.win.eventdata.newProcessName`
-- `data.win.eventdata.tokenElevationType`
-- `data.win.eventdata.processId`
-- `data.win.eventdata.commandLine`
-- `data.win.eventdata.parentProcessName`
-- `data.win.eventdata.mandatoryLabel`
-
 ### Operational conclusion
 
 Event ID 4688 is high-volume telemetry. The stock Wazuh rule is sufficient as the collection baseline, but level 3 is not intended to identify privilege escalation by itself.
@@ -279,7 +210,7 @@ TESTED
 
 ### Required audit policy
 
-Event ID 4697 requires the following Advanced Audit Policy subcategory:
+Event ID 4697 requires:
 
 ```text
 Computer Configuration
@@ -305,7 +236,7 @@ Verification command:
 auditpol /get /subcategory:"Security System Extension"
 ```
 
-A result of `No Auditing` prevents Windows from generating Event ID 4697. The setting is therefore managed through the `Wazuh Domain Controller Policy` Group Policy rather than as an ad-hoc local change.
+A result of `No Auditing` prevents Windows from generating Event ID 4697. The setting is managed through the `Wazuh Domain Controller Policy` Group Policy.
 
 ### Controlled test
 
@@ -319,55 +250,29 @@ Cleanup:
 sc.exe delete WSF-TestService5
 ```
 
-### Windows validation
-
-The controlled test generated:
-
-- Security Event ID `4697`;
-- System Event ID `7045`.
-
-Event ID 4697 included the installing identity and service details, including:
-
-- `subjectUserName`;
-- `subjectDomainName`;
-- `serviceName`;
-- `serviceFileName`;
-- `serviceType`;
-- `serviceStartType`;
-- `serviceAccount`.
-
 ### Wazuh validation
 
-Both events were received through the `windows_eventchannel` decoder.
+The controlled test generated Security Event ID `4697` and System Event ID `7045`.
 
-Event ID 7045 matched the existing stock rule:
+Event ID 7045 matched stock rule:
 
 - rule ID: `61138`;
 - level: `5`;
 - description: `New Windows Service Created`.
 
-No active stock rule matching Windows Security Event ID 4697 was found. The apparent grep matches `44697` and `184697` were unrelated rule IDs.
+No active stock rule matching Security Event ID 4697 was found. Custom rule `111000` was created and validated:
 
-Custom rule `111000` was created and validated:
-
-- parent rule: `60103` (`Windows audit success event`);
-- event: Security Event ID `4697`;
+- parent rule: `60103`;
 - level: `10`;
 - MITRE ATT&CK: `T1543.003`;
 - verified description: `Windows service installed by PCO\administrator: WSF-TestService5`.
 
 ### Operational conclusion
 
-Events 4697 and 7045 are complementary rather than duplicates:
+Events 4697 and 7045 are complementary:
 
 - 7045 provides stock System-log service-installation detection;
-- 4697 provides the installing user identity and is the authoritative security alert for this module.
-
-The custom 4697 alert is retained at level 10. Production noise and notification policy must be reviewed before enabling immediate email delivery.
-
-### Testing note
-
-Pasting EventChannel JSON into `wazuh-logtest` may cause it to be decoded as generic `json` rather than `windows_eventchannel`. The final validation was therefore performed through live Windows EventChannel ingestion and confirmed in `wazuh-alerts-*`.
+- 4697 provides the installing user identity and is the authoritative custom security alert for this module.
 
 Detailed documentation:
 
@@ -417,4 +322,4 @@ No correlation will be implemented until the individual source events and decode
 
 ## Next work item
 
-Identify a documented, safe and reproducible positive test for Event 4673 rule `111101`. Do not mark it TESTED until a real non-baseline Event 4673 is generated and confirmed through live Windows EventChannel ingestion.
+Continue with the next explicitly selected Windows Privilege Escalation event. Event 4673 is closed for the portable framework baseline unless a future customer-specific requirement reopens it.

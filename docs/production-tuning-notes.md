@@ -57,7 +57,43 @@ On `SRV-SP`, the account `CTU2008\spadmin-w2016` was used by multiple SharePoint
 - multiple `noderunner.exe` processes
 - IIS `w3wp.exe` application pools, including SharePoint and Security Token Service
 
-After `SRV-SP` was restarted, the authentication storm stopped and no new Wazuh agent queue warnings were observed during the subsequent check.
+A restart of `SRV-SP` initially stopped the storm and the Wazuh agent returned to normal. This was not a permanent fix.
+
+#### Repeated occurrence after restart
+
+Later on 2026-08-08 the same pattern returned. During the interval `14:05–14:20`, raw Windows Security logs on `srv2-praha` contained:
+
+- `23057` × Event ID `4634` — logoff
+- `23047` × Event ID `4624` — successful logon
+- `23047` × Event ID `4627` — group membership information
+- `482` × Event ID `4769` — Kerberos service ticket request
+- `441` × Event ID `4768` — Kerberos TGT request
+- `278` × Event ID `4672` — special privileges assigned
+- `245` × Event ID `4964` — special groups assigned to a new logon
+- `186` × Event ID `4776` — credential validation
+- `101` × Event ID `4648` — explicit credentials
+
+Analysis of Event ID `4624` showed:
+
+- `21899` logons from `spadmin-w2016`
+- source IP `172.16.0.112` (`SRV-SP`)
+- Logon Type `3`
+- Authentication Package `Kerberos`
+
+This accounted for approximately 95% of all successful logons in the interval and represented roughly 24 successful network logons per second.
+
+The Wazuh agent queue timeline was:
+
+- `14:11:27` — rule `202`, queue at 90%
+- `14:11:34` — rule `203`, queue full
+- `14:11:49` — rule `204`, queue flooded
+- `14:18:16` — rule `205`, queue back to normal
+
+The queue moved from 90% to flooded in approximately 21 seconds and required more than six minutes to recover.
+
+**Updated conclusion:** The SharePoint-related authentication storm is reproducible. Restarting `SRV-SP` only interrupts the condition temporarily; it does not remove the root cause. The repeated combination of `SRV-SP`, account `spadmin-w2016`, Logon Type `3`, Kerberos, tens of thousands of `4624/4627/4634` events, and subsequent Wazuh queue flooding provides strong evidence that this application-side behavior is the immediate trigger for the agent overload.
+
+**Operational action:** Investigate `SRV-SP` and identify the exact SharePoint component creating the short-lived authenticated sessions. Do not treat Wazuh tuning as the primary remediation.
 
 **Lesson:** A Wazuh authentication-volume anomaly can reveal an operational problem in an application server. Do not immediately suppress the authentication events. Identify the source host, account, logon type, and authentication protocol first.
 

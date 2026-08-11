@@ -102,7 +102,11 @@ Production rule review confirmed:
 - 101110 - email enabled with `alert_by_email`;
 - 101200 - email enabled with `alert_by_email`.
 
-Production tuning follow-up remains open for `101110`: repeated Event 4771 / status `0x18` from computer account `N01-122$` demonstrated that the generic description `Possible Kerberos password attack` is not semantically appropriate for machine-account failures. The machine-account issue itself stopped after the workstation was removed from and rejoined to the domain.
+Production validation of `101110` was completed on CTU on 2026-08-11. The same-account + same-source correlation behaved as intended on real Event 4771 / status `0x18` traffic. A production case for `hergerovam` generated repeated `101101` alerts from `::ffff:172.16.0.7`, followed by rule `101110` level 10 once the correlation threshold was reached. A separate `0x18` event for the same account from `::ffff:172.17.2.87` did not contaminate the same-source correlation sequence. Later `0x12` events for the same account were classified independently by rule `101102`.
+
+The prior high-volume `N01-122$` case was confirmed to be an operational machine-account issue. The workstation was removed from and rejoined to the domain; that case is no longer a blocker for `101110` validation and is not used as evidence for human-account attack semantics.
+
+Result: `101110` production validation PASS. No further XML tuning is currently required for this rule.
 
 ---
 
@@ -131,7 +135,7 @@ File:
 `rules/1021-windows-password-management.xml`
 
 | Wazuh rule | Windows Event ID | Meaning | Status |
-|---|---:|---|---|
+|---:|---:|---|---|
 | 102100 | 4724 | Administrator reset user password | TESTED |
 | 102101 | 4723 | User changed own password | TESTED |
 
@@ -242,13 +246,14 @@ Production evidence from CTU has reopened selected completed rules for narrow tu
 Completed on 2026-08-11:
 
 - Event 4738 / rule `102006`: email removed, alert retained;
-- Event 4964 / rule `111201`: customer-specific CDB service-account exclusion implemented and production validated.
+- Event 4964 / rule `111201`: customer-specific CDB service-account exclusion implemented and production validated;
+- Event 4771 / status `0x18` / rule `101110`: production validation completed on real CTU traffic; same-account + same-source correlation verified; no further XML tuning required.
 
-Next approved tuning candidate:
+Next approved work:
 
-- Event 4771 / status `0x18` / rule `101110`: separate human-account attack semantics from computer-account authentication anomalies using production evidence from `N01-122$`.
+- complete Kerberos v0.3.0 by inventorying and classifying additional Event 4771 failure codes from real CTU data, then finish the Kerberos dashboard and final Kerberos documentation.
 
-The previously documented NTLM Monitoring v0.4.0 milestone remains pending until this narrow production-tuning work is closed.
+The NTLM Monitoring v0.4.0 milestone remains next after Kerberos v0.3.0 is closed.
 
 ---
 

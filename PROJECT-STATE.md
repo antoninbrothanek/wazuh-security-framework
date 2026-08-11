@@ -1,6 +1,6 @@
 # Wazuh Security Framework – Project State
 
-Last updated: 2026-08-06
+Last updated: 2026-08-11
 
 ## Project goal
 
@@ -27,13 +27,15 @@ Production Wazuh configuration:
 
 `/var/ossec/etc`
 
-Workflow:
+Current CTU note: the historical `wsf deploy` / `wsf save` helper is not present on the CTU manager. On CTU, validated master changes were deployed manually from `/opt/wazuh-security-framework` to `/var/ossec/etc` and then committed to GitHub after production validation.
+
+General workflow remains:
 
 1. Edit files in `/opt/wazuh-security-framework`.
 2. Validate configuration.
-3. Deploy using `wsf deploy`.
+3. Deploy the approved change to `/var/ossec/etc`.
 4. Test the real event in Wazuh.
-5. Save confirmed changes using `wsf save "description"`.
+5. Commit only the validated state to GitHub.
 
 Do not develop configuration directly in `/var/ossec/etc`.
 
@@ -90,7 +92,7 @@ Status: COMPLETE as of 2026-07-27. Event-analysis baseline, target-manager valid
 
 ### Final authentication notification policy
 
-Production rule review on `server07` confirmed:
+Production rule review confirmed:
 
 - 101000 - no email;
 - 101001 - no email;
@@ -100,6 +102,8 @@ Production rule review on `server07` confirmed:
 - 101110 - email enabled with `alert_by_email`;
 - 101200 - email enabled with `alert_by_email`.
 
+Production tuning follow-up remains open for `101110`: repeated Event 4771 / status `0x18` from computer account `N01-122$` demonstrated that the generic description `Possible Kerberos password attack` is not semantically appropriate for machine-account failures. The machine-account issue itself stopped after the workstation was removed from and rejoined to the domain.
+
 ---
 
 # Windows User Management
@@ -108,15 +112,15 @@ File:
 
 `rules/1020-windows-user-management.xml`
 
-| Wazuh rule | Windows Event ID | Meaning | Status |
-|---|---:|---|---|
-| 102000 | 4720 | User account created | TESTED |
-| 102001 | 4722 | User account enabled | TESTED |
-| 102004 | 4725 | User account disabled | TESTED |
-| 102005 | 4726 | User account deleted | TESTED |
-| 102006 | 4738 | User account changed | TESTED |
+| Wazuh rule | Windows Event ID | Meaning | Status | Email policy |
+|---|---:|---|---|---|
+| 102000 | 4720 | User account created | TESTED | Yes |
+| 102001 | 4722 | User account enabled | TESTED | Yes |
+| 102004 | 4725 | User account disabled | TESTED | Yes |
+| 102005 | 4726 | User account deleted | TESTED | Yes |
+| 102006 | 4738 | User account changed | TESTED IN PRODUCTION | No |
 
-These management rules generate email alerts according to their configured policy.
+Production decision on 2026-08-11: remove `alert_by_email` from rule `102006`. Event 4738 and the level-8 custom alert remain available, but expected synchronization batches no longer generate one email per account change.
 
 ---
 
@@ -189,10 +193,11 @@ Rules `102202` and `102203` use the same validated rule structure and stock pare
 Primary files:
 
 - `rules/1110-windows-privilege-escalation.xml`
+- `lists/wsf-privileged-service-accounts`
 - `modules/windows-privilege-escalation/privilege-escalation-matrix.md`
 - `docs/windows-privilege-escalation/`
 
-Status: COMPLETE for the approved event baseline. Event 4703 remains explicitly deferred and does not block module completion.
+Status: COMPLETE for the approved event baseline, with production tuning incorporated for Event 4964. Event 4703 remains explicitly deferred and does not block module completion.
 
 | Event ID | Meaning | Coverage | Status | Email policy |
 |---:|---|---|---|---|
@@ -202,7 +207,7 @@ Status: COMPLETE for the approved event baseline. Event 4703 remains explicitly 
 | 4688 | A new process was created | stock 67027 | TESTED AS TELEMETRY | No |
 | 4697 | A service was installed in the system | custom 111000, level 10 | TESTED – CUSTOM RULE | No generic email |
 | 7045 | A service was installed in the system | stock 61138, level 5 | TESTED – STOCK RULE | No duplicate email |
-| 4964 | Special groups assigned to a new logon | custom 111201, level 10 | TESTED – CUSTOM RULE | No |
+| 4964 | Special groups assigned to a new logon | custom 111201, level 10 + customer-specific CDB exclusion | TESTED IN PRODUCTION | No |
 | 1102 | Security audit log was cleared | custom 111400, level 12 | TESTED – CUSTOM RULE | Yes |
 | 4698 | Scheduled task was created | stock 60228, level 4 | TESTED AS TELEMETRY | No |
 | 4703 | A token right was adjusted | no live sample; no stock rule | DEFERRED | No |
@@ -212,8 +217,10 @@ Validated custom rules:
 
 - `111000` - Event 4697 service installation, level 10.
 - `111200` - internal Event 4964 base rule, level 0.
-- `111201` - Event 4964 human-account special-group logon, level 10.
+- `111201` - Event 4964 privileged-logon alert, level 10, excluding LocalSystem, computer accounts, and customer-approved service/automation accounts from `etc/lists/wsf-privileged-service-accounts`.
 - `111400` - Event 1102 Security audit log cleared, level 12, immediate email.
+
+Production validation of the CDB mechanism on 2026-08-11 confirmed that `pumaSync` stopped generating rule `111201` while accounts not present in the list, including `vmadmin` and `chrudimskyja`, continued to generate level-10 alerts. The CDB list is scoped only to rule `111201` and must not be treated as a global trusted-account whitelist.
 
 Important decisions:
 
@@ -221,25 +228,27 @@ Important decisions:
 - do not create portable generic success rules for Event 4673 or Event 4674;
 - do not duplicate adequate stock rules;
 - Event 4703 remains deferred until a real production sample is available;
-- Event 4698 remains stock telemetry; persistence-specific child rules require a separately approved work item.
+- Event 4698 remains stock telemetry; persistence-specific child rules require a separately approved work item;
+- keep customer-specific service/automation identities outside portable rule logic and manage them through the dedicated CDB list used only by rule `111201`.
 
 ---
 
 # Current work
 
-## Active milestone: NTLM Monitoring v0.4.0
+## Production tuning follow-up
 
-The Windows Privilege Escalation module is closed for its approved scope. The next approved module is NTLM Monitoring.
+Production evidence from CTU has reopened selected completed rules for narrow tuning without expanding the framework architecture.
 
-Initial NTLM work must begin with documentation and evidence collection, not custom rules:
+Completed on 2026-08-11:
 
-1. define the module scope and completion criteria;
-2. inventory relevant Windows NTLM event sources and active stock Wazuh coverage;
-3. inspect existing real Event 4776 and related authentication data;
-4. classify observed NTLM scenarios before approving custom detections;
-5. define notification policy only after measured validation.
+- Event 4738 / rule `102006`: email removed, alert retained;
+- Event 4964 / rule `111201`: customer-specific CDB service-account exclusion implemented and production validated.
 
-No new NTLM rule is approved yet.
+Next approved tuning candidate:
+
+- Event 4771 / status `0x18` / rule `101110`: separate human-account attack semantics from computer-account authentication anomalies using production evidence from `N01-122$`.
+
+The previously documented NTLM Monitoring v0.4.0 milestone remains pending until this narrow production-tuning work is closed.
 
 ---
 

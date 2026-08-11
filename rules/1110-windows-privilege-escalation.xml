@@ -54,6 +54,7 @@
       - no active stock Wazuh rule for Event 4964 was found;
       - positive detection for human accounts verified;
       - LocalSystem and computer-account exclusions verified;
+      - customer-specific service-account exclusion via CDB list verified in production;
       - email is intentionally not enabled.
   -->
 
@@ -65,14 +66,24 @@
   </rule>
 
   <!--
-    Alert only for human accounts.
-    Excludes LocalSystem and account names ending in $, which represent
-    computer accounts in Active Directory.
+    Alert for privileged logons that are not known infrastructure noise.
+
+    Excludes:
+      - LocalSystem;
+      - Active Directory computer accounts ending in $;
+      - customer-approved service/automation accounts stored in
+        etc/lists/wsf-privileged-service-accounts.
+
+    The CDB list is customer-specific. The rule itself remains portable.
   -->
   <rule id="111201" level="10">
     <if_sid>111200</if_sid>
+
     <field name="win.eventdata.targetUserSid" negate="yes">^S-1-5-18$</field>
     <field name="win.eventdata.targetUserName" type="pcre2" negate="yes">(?i)\$$</field>
+
+    <list field="win.eventdata.targetUserName" lookup="not_match_key">etc/lists/wsf-privileged-service-accounts</list>
+
     <description>Special-group logon by $(win.eventdata.targetDomainName)\$(win.eventdata.targetUserName): $(win.eventdata.sidList)</description>
 
     <group>

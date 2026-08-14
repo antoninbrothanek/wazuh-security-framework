@@ -1,10 +1,10 @@
 # Wazuh Security Framework – Project State
 
-Last updated: 2026-08-11
+Last updated: 2026-08-14
 
 ## Project goal
 
-Build a reusable Wazuh security monitoring framework that can later be deployed in a larger production environment.
+Build a reusable Wazuh security monitoring framework that can later be deployed in larger production environments.
 
 The Git repository is the authoritative source of configuration and project state.
 
@@ -15,7 +15,7 @@ The Git repository is the authoritative source of configuration and project stat
 - `modules/<module>/README.md` - module scope, design and completion criteria.
 - Module matrices - detailed event/rule/test/notification mapping.
 
-If documents disagree about implementation status, `PROJECT-STATE.md` must be corrected from real production evidence before further development continues.
+If documents disagree about implementation status, `PROJECT-STATE.md` must be corrected from validated evidence before further development continues.
 
 ## Working model
 
@@ -27,9 +27,7 @@ Production Wazuh configuration:
 
 `/var/ossec/etc`
 
-Current CTU note: the historical `wsf deploy` / `wsf save` helper is not present on the CTU manager. On CTU, validated master changes were deployed manually from `/opt/wazuh-security-framework` to `/var/ossec/etc` and then committed to GitHub after production validation.
-
-General workflow remains:
+General workflow:
 
 1. Edit files in `/opt/wazuh-security-framework`.
 2. Validate configuration.
@@ -38,6 +36,8 @@ General workflow remains:
 5. Commit only the validated state to GitHub.
 
 Do not develop configuration directly in `/var/ossec/etc`.
+
+Raw-event collection may be enabled temporarily or permanently in a validation environment when alert indices alone are insufficient for event-code inventory or baseline analysis. Raw telemetry is evidence for rule design; it does not by itself justify a new alert rule.
 
 ---
 
@@ -50,7 +50,7 @@ Files:
 - `rules/1005-pco-firewall_rules.xml`
 - `decoders/1005-pco-shorewall_decoder.xml`
 
-Status: implemented and imported from the current production Wazuh configuration. Further policy/testing consolidation remains a later roadmap item.
+Status: implemented and imported from production Wazuh configuration. Further policy/testing consolidation remains a later roadmap item.
 
 ---
 
@@ -61,7 +61,7 @@ Files:
 - `rules/pco-rspamd_rules.xml`
 - `decoders/pco-rspamd_decoders.xml`
 
-Status: implemented and imported from the current production Wazuh configuration.
+Status: implemented and imported from production Wazuh configuration.
 
 ---
 
@@ -84,7 +84,7 @@ Status: COMPLETE as of 2026-07-27. Event-analysis baseline, target-manager valid
 | 4624 | Successful logon | stock 60106 | TESTED | No |
 | 4625 | Failed logon | stock 60105/60122; custom 101000, 101001, 101002 | TESTED for implemented classifications/correlation | No for 101000/101001/101002 |
 | 4634 | User logoff | stock 60137 identified | INTENTIONALLY EXCLUDED from v0.2.0 detection baseline | No |
-| 4648 | Explicit credentials used | no stock alerting coverage found on server07; no generic custom rule approved | TESTED for Windows behavior / no generic Wazuh alert | No generic email |
+| 4648 | Explicit credentials used | no stock alerting coverage found during validation; no generic custom rule approved | TESTED for Windows behavior / no generic Wazuh alert | No generic email |
 | 4672 | Special privileges assigned | stock 67028, level 3 | TESTED on real event and target manager | No generic email; enrichment/correlation |
 | 4740 | Account locked out | custom 101200 based on stock 60115 | TESTED | Yes - 101200 |
 | 4771 | Kerberos pre-authentication failed | custom 101100/101101/101102/101110 | TESTED for implemented scenarios | Only 101110 repeated attack correlation |
@@ -102,9 +102,7 @@ Production rule review confirmed:
 - 101110 - email enabled with `alert_by_email`;
 - 101200 - email enabled with `alert_by_email`.
 
-Production validation of `101110` was completed on CTU on 2026-08-11. The same-account + same-source correlation behaved as intended on real Event 4771 / status `0x18` traffic. A production case for `hergerovam` generated repeated `101101` alerts from `::ffff:172.16.0.7`, followed by rule `101110` level 10 once the correlation threshold was reached. A separate `0x18` event for the same account from `::ffff:172.17.2.87` did not contaminate the same-source correlation sequence. Later `0x12` events for the same account were classified independently by rule `101102`.
-
-The prior high-volume `N01-122$` case was confirmed to be an operational machine-account issue. The workstation was removed from and rejoined to the domain; that case is no longer a blocker for `101110` validation and is not used as evidence for human-account attack semantics.
+Production validation of `101110` confirmed that same-account + same-source correlation behaves as intended on real Event 4771 / status `0x18` traffic. Events for the same account from another source do not contaminate the correlation sequence, and status `0x12` events are classified independently by rule `101102`.
 
 Result: `101110` production validation PASS. No further XML tuning is currently required for this rule.
 
@@ -124,7 +122,7 @@ File:
 | 102005 | 4726 | User account deleted | TESTED | Yes |
 | 102006 | 4738 | User account changed | TESTED IN PRODUCTION | No |
 
-Production decision on 2026-08-11: remove `alert_by_email` from rule `102006`. Event 4738 and the level-8 custom alert remain available, but expected synchronization batches no longer generate one email per account change.
+Production review removed `alert_by_email` from rule `102006`. Event 4738 and the level-8 custom alert remain available, while expected synchronization or administration batches no longer generate one email per account change.
 
 ---
 
@@ -211,7 +209,7 @@ Status: COMPLETE for the approved event baseline, with production tuning incorpo
 | 4688 | A new process was created | stock 67027 | TESTED AS TELEMETRY | No |
 | 4697 | A service was installed in the system | custom 111000, level 10 | TESTED – CUSTOM RULE | No generic email |
 | 7045 | A service was installed in the system | stock 61138, level 5 | TESTED – STOCK RULE | No duplicate email |
-| 4964 | Special groups assigned to a new logon | custom 111201, level 10 + customer-specific CDB exclusion | TESTED IN PRODUCTION | No |
+| 4964 | Special groups assigned to a new logon | custom 111201, level 10 + deployment-specific CDB exclusion | TESTED IN PRODUCTION | No |
 | 1102 | Security audit log was cleared | custom 111400, level 12 | TESTED – CUSTOM RULE | Yes |
 | 4698 | Scheduled task was created | stock 60228, level 4 | TESTED AS TELEMETRY | No |
 | 4703 | A token right was adjusted | no live sample; no stock rule | DEFERRED | No |
@@ -221,10 +219,10 @@ Validated custom rules:
 
 - `111000` - Event 4697 service installation, level 10.
 - `111200` - internal Event 4964 base rule, level 0.
-- `111201` - Event 4964 privileged-logon alert, level 10, excluding LocalSystem, computer accounts, and customer-approved service/automation accounts from `etc/lists/wsf-privileged-service-accounts`.
+- `111201` - Event 4964 privileged-logon alert, level 10, excluding LocalSystem, computer accounts, and deployment-approved service/automation accounts from `etc/lists/wsf-privileged-service-accounts`.
 - `111400` - Event 1102 Security audit log cleared, level 12, immediate email.
 
-Production validation of the CDB mechanism on 2026-08-11 confirmed that `pumaSync` stopped generating rule `111201` while accounts not present in the list, including `vmadmin` and `chrudimskyja`, continued to generate level-10 alerts. The CDB list is scoped only to rule `111201` and must not be treated as a global trusted-account whitelist.
+Production validation confirmed that the CDB exclusion mechanism suppresses approved service/automation identities while other human accounts continue to generate the expected level-10 alert. The CDB list is scoped only to rule `111201` and must not be treated as a global trusted-account whitelist.
 
 Important decisions:
 
@@ -233,25 +231,77 @@ Important decisions:
 - do not duplicate adequate stock rules;
 - Event 4703 remains deferred until a real production sample is available;
 - Event 4698 remains stock telemetry; persistence-specific child rules require a separately approved work item;
-- keep customer-specific service/automation identities outside portable rule logic and manage them through the dedicated CDB list used only by rule `111201`.
+- keep deployment-specific service/automation identities outside portable rule logic and manage them through the dedicated CDB list used only by rule `111201`.
+
+---
+
+# Kerberos v0.3.0 – current validation
+
+The Kerberos milestone extends the completed Windows Authentication baseline. Development remains evidence-driven: observed Windows/Kerberos behavior is classified before additional custom rules are approved.
+
+Current validated coverage:
+
+- Event 4771 base detection: implemented;
+- status `0x18` (`KDC_ERR_PREAUTH_FAILED`): rule `101101`, level 5, no email;
+- status `0x12` (`KDC_ERR_CLIENT_REVOKED`): rule `101102`, level 7, no email;
+- repeated status `0x18` for the same account and source: rule `101110`, level 10, email enabled;
+- `101110` same-account + same-source correlation: production validated.
+
+## Raw-event assessment principle
+
+Alert indices contain only events that reach an alerting rule and therefore are not sufficient by themselves to inventory all Kerberos failure codes. Where additional event-code discovery is required, raw Windows Event 4771 telemetry should be inspected from Wazuh archives or another validated raw-event source.
+
+Current raw-event assessment has confirmed the expected `0x18` population. No additional Event 4771 failure code has yet accumulated enough validated evidence to justify another portable custom rule.
+
+## Operational versus security semantics
+
+Kerberos failure codes must not be interpreted without account, source, timing and workload context.
+
+Validated observations support the following design rules:
+
+- a single `0x18` event is useful authentication telemetry but is not, by itself, evidence of an attack;
+- repeated rapid `0x18` failures for the same account and source are covered by `101110`;
+- periodic `0x18` failures may indicate persistent or stale credentials in an automated workload and are operationally valuable even when they do not satisfy the attack-correlation threshold;
+- machine-account and infrastructure authentication can generate recurring Kerberos failures and must be investigated before being suppressed;
+- known infrastructure patterns must not be converted into global account exclusions without evidence that the exclusion is safe and portable.
+
+Persistent low-frequency credential failures are therefore retained as a documented candidate detection scenario, but no generic correlation threshold has been approved yet. Additional evidence is required before implementing such a rule.
+
+## Event 4769 assessment
+
+Event 4769 (Kerberos service-ticket request) failures have been identified as useful Kerberos operational/security telemetry. Production observations show that the same failure status can occur in materially different infrastructure and application contexts.
+
+Decision:
+
+- retain Event 4769 failure analysis as a Kerberos assessment item;
+- do not create a generic custom Event 4769 failure rule at this stage;
+- classify account type, service principal, source and workload before deciding whether a scenario is security-relevant;
+- avoid duplicating stock Wazuh failure alerts unless a documented portable detection requirement exists.
 
 ---
 
 # Current work
 
-## Production tuning follow-up
+## Kerberos v0.3.0 completion
 
-Production evidence from CTU has reopened selected completed rules for narrow tuning without expanding the framework architecture.
+Completed:
 
-Completed on 2026-08-11:
+- Event 4771 baseline detection;
+- `0x18` invalid-password/pre-authentication-failure classification;
+- `0x12` locked/revoked-client classification;
+- repeated `0x18` correlation rule `101110`;
+- email policy for the correlated password-attack scenario;
+- production validation of same-account + same-source correlation;
+- raw-event collection methodology established for additional failure-code inventory;
+- initial operational-versus-security classification principles documented.
 
-- Event 4738 / rule `102006`: email removed, alert retained;
-- Event 4964 / rule `111201`: customer-specific CDB service-account exclusion implemented and production validated;
-- Event 4771 / status `0x18` / rule `101110`: production validation completed on real CTU traffic; same-account + same-source correlation verified; no further XML tuning required.
+Remaining before v0.3.0 closure:
 
-Next approved work:
-
-- complete Kerberos v0.3.0 by inventorying and classifying additional Event 4771 failure codes from real CTU data, then finish the Kerberos dashboard and final Kerberos documentation.
+1. continue raw Event 4771 inventory long enough to identify and validate any additional failure codes that occur naturally;
+2. decide whether any additional observed failure code warrants a portable rule;
+3. review Event 4769 findings and either explicitly defer or incorporate any portable detection requirement;
+4. complete the Kerberos dashboard;
+5. perform the final Kerberos documentation review and mark v0.3.0 complete.
 
 The NTLM Monitoring v0.4.0 milestone remains next after Kerberos v0.3.0 is closed.
 

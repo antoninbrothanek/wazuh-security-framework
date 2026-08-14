@@ -235,11 +235,13 @@ Important decisions:
 
 ---
 
-# Kerberos v0.3.0 – current validation
+# Kerberos v0.3.0
 
-The Kerberos milestone extends the completed Windows Authentication baseline. Development remains evidence-driven: observed Windows/Kerberos behavior is classified before additional custom rules are approved.
+Status: COMPLETE as of 2026-08-14.
 
-Current validated coverage:
+The Kerberos milestone extends the completed Windows Authentication baseline with evidence-driven failure classification, correlation and operational visibility.
+
+Validated coverage:
 
 - Event 4771 base detection: implemented;
 - status `0x18` (`KDC_ERR_PREAUTH_FAILED`): rule `101101`, level 5, no email;
@@ -249,15 +251,15 @@ Current validated coverage:
 
 ## Raw-event assessment principle
 
-Alert indices contain only events that reach an alerting rule and therefore are not sufficient by themselves to inventory all Kerberos failure codes. Where additional event-code discovery is required, raw Windows Event 4771 telemetry should be inspected from Wazuh archives or another validated raw-event source.
+Alert indices contain only events that reach an alerting rule and therefore are not sufficient by themselves to inventory all Kerberos failure codes. Raw Windows Event 4771 telemetry was therefore inspected from Wazuh archives to validate the observed failure-code population.
 
-Current raw-event assessment has confirmed the expected `0x18` population. No additional Event 4771 failure code has yet accumulated enough validated evidence to justify another portable custom rule.
+The raw assessment confirmed `0x18` as the dominant naturally occurring Event 4771 failure code during the validation window. No additional Event 4771 failure code accumulated enough validated evidence to justify another portable custom rule.
 
 ## Operational versus security semantics
 
 Kerberos failure codes must not be interpreted without account, source, timing and workload context.
 
-Validated observations support the following design rules:
+Validated design rules:
 
 - a single `0x18` event is useful authentication telemetry but is not, by itself, evidence of an attack;
 - repeated rapid `0x18` failures for the same account and source are covered by `101110`;
@@ -265,45 +267,56 @@ Validated observations support the following design rules:
 - machine-account and infrastructure authentication can generate recurring Kerberos failures and must be investigated before being suppressed;
 - known infrastructure patterns must not be converted into global account exclusions without evidence that the exclusion is safe and portable.
 
-Persistent low-frequency credential failures are therefore retained as a documented candidate detection scenario, but no generic correlation threshold has been approved yet. Additional evidence is required before implementing such a rule.
+Persistent low-frequency credential failures remain a documented future detection candidate. No generic correlation threshold is approved in v0.3.0.
 
 ## Event 4769 assessment
 
-Event 4769 (Kerberos service-ticket request) failures have been identified as useful Kerberos operational/security telemetry. Production observations show that the same failure status can occur in materially different infrastructure and application contexts.
+Event 4769 (Kerberos service-ticket request) failures were assessed as useful Kerberos operational/security telemetry, but not as a basis for a generic custom rule in this milestone.
 
-Decision:
+Observed failure statuses included `0x12` and `0x20`. The assessment confirmed that the same Kerberos failure status can occur in materially different infrastructure and application contexts, and that some failure patterns are operational rather than incident-worthy.
 
-- retain Event 4769 failure analysis as a Kerberos assessment item;
-- do not create a generic custom Event 4769 failure rule at this stage;
-- classify account type, service principal, source and workload before deciding whether a scenario is security-relevant;
-- avoid duplicating stock Wazuh failure alerts unless a documented portable detection requirement exists.
+Final decision:
+
+- no generic custom Event 4769 failure rule in v0.3.0;
+- classify account type, service principal, source, timing and workload before deciding whether a 4769 failure is security-relevant;
+- avoid duplicating adequate stock Wazuh failure alerts without a portable detection requirement.
+
+## Kerberos dashboard
+
+The `Kerberos` dashboard was implemented and validated using `wazuh-alerts-*`.
+
+Validated panels:
+
+- `Kerberos - Invalid Passwords` - metric for rule `101101`;
+- `Kerberos - Locked or Revoked Client` - metric for rule `101102`;
+- `Kerberos - Correlated Attacks` - metric for rule `101110`;
+- `Kerberos - Top Failed Accounts` - rule `101101` grouped by `data.win.eventdata.targetUserName`;
+- `Kerberos - Top Failure Sources` - rule `101101` grouped by `data.win.eventdata.ipAddress`;
+- `Kerberos - Failures Timeline` - rules `101101`, `101102` and `101110` over time;
+- `Kerberos - Recent Security Events` - saved-search table showing time, rule ID, rule description, target account and source IP.
+
+The dashboard intentionally retains machine accounts in analytical views because infrastructure authentication failures can be operationally significant. The dashboard is an investigation and situational-awareness tool and does not alter the email-notification policy.
+
+Result: Kerberos dashboard PASS.
 
 ---
 
 # Current work
 
-## Kerberos v0.3.0 completion
+## NTLM Monitoring v0.4.0
 
-Completed:
+Kerberos v0.3.0 is complete. The active milestone is now NTLM Monitoring v0.4.0.
 
-- Event 4771 baseline detection;
-- `0x18` invalid-password/pre-authentication-failure classification;
-- `0x12` locked/revoked-client classification;
-- repeated `0x18` correlation rule `101110`;
-- email policy for the correlated password-attack scenario;
-- production validation of same-account + same-source correlation;
-- raw-event collection methodology established for additional failure-code inventory;
-- initial operational-versus-security classification principles documented.
+Initial approved work:
 
-Remaining before v0.3.0 closure:
+1. define the NTLM monitoring scope and completion criteria;
+2. inventory relevant Windows event sources, starting with Event 4776;
+3. inspect stock Wazuh coverage and raw-event availability;
+4. classify real NTLM success/failure patterns before implementing custom rules;
+5. define notification policy only after the event semantics and operational noise are understood;
+6. build NTLM dashboard and final documentation after detection decisions are validated.
 
-1. continue raw Event 4771 inventory long enough to identify and validate any additional failure codes that occur naturally;
-2. decide whether any additional observed failure code warrants a portable rule;
-3. review Event 4769 findings and either explicitly defer or incorporate any portable detection requirement;
-4. complete the Kerberos dashboard;
-5. perform the final Kerberos documentation review and mark v0.3.0 complete.
-
-The NTLM Monitoring v0.4.0 milestone remains next after Kerberos v0.3.0 is closed.
+No new NTLM custom rule is approved at milestone start.
 
 ---
 

@@ -1,6 +1,6 @@
 # Wazuh Security Framework Roadmap
 
-Last reviewed: 2026-08-06
+Last reviewed: 2026-08-14
 
 ## Status model
 
@@ -16,20 +16,22 @@ The roadmap describes planned project progression. `PROJECT-STATE.md` remains th
 
 The Windows Privilege Escalation module is complete for its approved event baseline. Event 4703 remains explicitly deferred pending a real production sample and does not block module completion.
 
-The next approved milestone is:
+The active milestone is:
 
-## v0.4.0 NTLM Monitoring
+## v0.3.0 Kerberos
 
-Initial work must begin with scope definition and evidence collection:
+Current work is focused on completing the existing Kerberos implementation before starting NTLM Monitoring.
 
-1. define the NTLM monitoring scope and completion criteria;
-2. inventory relevant Windows event sources;
-3. inspect active stock Wazuh coverage;
-4. review existing real Event 4776 and related authentication data;
-5. classify observed scenarios before creating custom rules;
-6. define notification and dashboard requirements only after validation.
+Immediate work:
 
-No NTLM custom rule is approved yet.
+1. continue raw Event 4771 failure-code inventory;
+2. classify additional observed failure codes and scenarios before creating rules;
+3. retain persistent low-frequency credential failures as an assessment candidate until a portable threshold is validated;
+4. review Event 4769 failure telemetry and explicitly defer or implement only evidence-backed portable detection requirements;
+5. complete the Kerberos dashboard;
+6. perform final Kerberos documentation review and close v0.3.0.
+
+The next milestone after Kerberos is v0.4.0 NTLM Monitoring.
 
 ---
 
@@ -87,20 +89,42 @@ Status: COMPLETE for the approved scope.
 
 ## v0.3.0 Kerberos
 
-Current implementation exists ahead of this roadmap milestone and will be consolidated later.
+Goal: extend the Windows Authentication baseline with evidence-driven Kerberos failure classification, correlation and operationally useful visibility while avoiding generic high-noise rules.
 
 - [x] Event 4771 baseline detection
-- [x] 0x18 invalid-password classification
-- [x] 0x12 locked/revoked-account classification
+- [x] 0x18 invalid-password / pre-authentication-failure classification
+- [x] 0x12 locked/revoked-client classification
 - [x] Repeated invalid-password correlation rule 101110
 - [x] Email notification for correlated password attack
-- [ ] Review additional Kerberos failure codes and security scenarios
+- [x] Production validation of same-account + same-source correlation
+- [x] Raw-event assessment methodology for additional failure-code inventory
+- [~] Review additional Kerberos failure codes and security scenarios
+- [~] Persistent low-frequency credential-failure assessment
+- [~] Event 4769 failure assessment
 - [ ] Kerberos dashboard
 - [ ] Final Kerberos documentation review
+
+Current rule-design decisions:
+
+- do not treat every Kerberos failure as a security incident;
+- interpret failure codes together with account, source, timing and workload context;
+- do not create a generic Event 4769 failure rule without a portable evidence-backed requirement;
+- do not approve a persistent-credential correlation threshold until sufficient real-event evidence exists.
+
+Status: ACTIVE MILESTONE.
 
 ---
 
 ## v0.4.0 NTLM
+
+Initial work must begin with scope definition and evidence collection:
+
+1. define the NTLM monitoring scope and completion criteria;
+2. inventory relevant Windows event sources;
+3. inspect active stock Wazuh coverage;
+4. review existing real Event 4776 and related authentication data;
+5. classify observed scenarios before creating custom rules;
+6. define notification and dashboard requirements only after validation.
 
 - [~] NTLM monitoring scope
 - [ ] Event analysis
@@ -109,7 +133,9 @@ Current implementation exists ahead of this roadmap milestone and will be consol
 - [ ] Dashboards
 - [ ] Documentation
 
-Current status: ACTIVE MILESTONE. Scope definition and evidence collection are the first approved work item.
+No NTLM custom rule is approved yet.
+
+Status: NEXT MILESTONE after Kerberos v0.3.0.
 
 ---
 

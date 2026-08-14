@@ -14,24 +14,20 @@ The roadmap describes planned project progression. `PROJECT-STATE.md` remains th
 
 ## Immediate next work
 
-The Windows Privilege Escalation module is complete for its approved event baseline. Event 4703 remains explicitly deferred pending a real production sample and does not block module completion.
+Kerberos v0.3.0 is complete. The active milestone is now:
 
-The active milestone is:
+## v0.4.0 NTLM Monitoring
 
-## v0.3.0 Kerberos
+Initial work begins with evidence collection and scope definition:
 
-Current work is focused on completing the existing Kerberos implementation before starting NTLM Monitoring.
+1. define NTLM monitoring scope and completion criteria;
+2. inventory Event 4776 and related Windows authentication events;
+3. inspect stock Wazuh coverage and raw-event availability;
+4. classify real NTLM success and failure patterns before creating custom rules;
+5. define notification policy after validating operational noise and security value;
+6. build the NTLM dashboard and complete final documentation after detection decisions are validated.
 
-Immediate work:
-
-1. continue raw Event 4771 failure-code inventory;
-2. classify additional observed failure codes and scenarios before creating rules;
-3. retain persistent low-frequency credential failures as an assessment candidate until a portable threshold is validated;
-4. review Event 4769 failure telemetry and explicitly defer or implement only evidence-backed portable detection requirements;
-5. complete the Kerberos dashboard;
-6. perform final Kerberos documentation review and close v0.3.0.
-
-The next milestone after Kerberos is v0.4.0 NTLM Monitoring.
+No NTLM custom rule is approved at milestone start.
 
 ---
 
@@ -98,44 +94,39 @@ Goal: extend the Windows Authentication baseline with evidence-driven Kerberos f
 - [x] Email notification for correlated password attack
 - [x] Production validation of same-account + same-source correlation
 - [x] Raw-event assessment methodology for additional failure-code inventory
-- [~] Review additional Kerberos failure codes and security scenarios
-- [~] Persistent low-frequency credential-failure assessment
-- [~] Event 4769 failure assessment
-- [ ] Kerberos dashboard
-- [ ] Final Kerberos documentation review
+- [x] Additional Kerberos failure-code review completed for the observed validation window
+- [x] Persistent low-frequency credential-failure assessment documented; no generic threshold approved
+- [x] Event 4769 failure assessment completed; no generic custom rule approved
+- [x] Kerberos dashboard
+- [x] Final Kerberos documentation review
 
-Current rule-design decisions:
+Final rule-design decisions:
 
 - do not treat every Kerberos failure as a security incident;
 - interpret failure codes together with account, source, timing and workload context;
-- do not create a generic Event 4769 failure rule without a portable evidence-backed requirement;
-- do not approve a persistent-credential correlation threshold until sufficient real-event evidence exists.
+- no generic Event 4769 failure rule without a portable evidence-backed requirement;
+- no persistent-credential correlation threshold without sufficient validated evidence.
 
-Status: ACTIVE MILESTONE.
+Status: COMPLETE.
 
 ---
 
 ## v0.4.0 NTLM
 
-Initial work must begin with scope definition and evidence collection:
-
-1. define the NTLM monitoring scope and completion criteria;
-2. inventory relevant Windows event sources;
-3. inspect active stock Wazuh coverage;
-4. review existing real Event 4776 and related authentication data;
-5. classify observed scenarios before creating custom rules;
-6. define notification and dashboard requirements only after validation.
+Goal: establish evidence-driven monitoring of NTLM credential validation and related authentication behavior without treating every NTLM use or failure as an incident.
 
 - [~] NTLM monitoring scope
-- [ ] Event analysis
-- [ ] Detection rules
+- [ ] Event 4776 baseline inventory
+- [ ] Related event-source and stock-rule review
+- [ ] Real success/failure scenario classification
+- [ ] Detection-rule decisions
 - [ ] Notification policy
-- [ ] Dashboards
+- [ ] NTLM dashboard
 - [ ] Documentation
 
-No NTLM custom rule is approved yet.
+Initial evidence work starts with Event 4776. Existing Windows Authentication testing already observed Event 4776 during controlled NTLM failures, including statuses `0xc000006a` and `0xc0000234`; those observations are baseline evidence, not yet an approved v0.4.0 detection policy.
 
-Status: NEXT MILESTONE after Kerberos v0.3.0.
+Status: ACTIVE MILESTONE.
 
 ---
 

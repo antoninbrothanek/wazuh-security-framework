@@ -1,9 +1,9 @@
 <group name="windows,authentication,ntlm,">
 
   <!-- ========================================================= -->
-  <!-- NTLMv1 authenticated network logon                         -->
-  <!-- Event ID 4624 / NTLM V1                                   -->
-  <!-- Anonymous logons are intentionally excluded.               -->
+  <!-- NTLMv1 authenticated network logon                       -->
+  <!-- Event ID 4624 / NTLM V1                                  -->
+  <!-- Anonymous logons are intentionally excluded.             -->
   <!-- ========================================================= -->
 
   <rule id="101300" level="10">
@@ -16,7 +16,31 @@
     <field name="win.eventdata.targetUserName" negate="yes">^ANONYMOUS LOGON$</field>
 
     <description>NTLMv1 authenticated network logon - User: $(win.eventdata.targetDomainName)\$(win.eventdata.targetUserName) - Source: $(win.eventdata.workstationName) ($(win.eventdata.ipAddress))</description>
+  </rule>
 
+  <!-- ========================================================= -->
+  <!-- NTLM credential validation failures                      -->
+  <!-- Event ID 4776                                            -->
+  <!-- ========================================================= -->
+
+  <rule id="101310" level="5">
+    <if_group>windows_security</if_group>
+
+    <field name="win.system.eventID">^4776$</field>
+    <field name="win.eventdata.packageName">^MICROSOFT_AUTHENTICATION_PACKAGE_V1_0$</field>
+    <field name="win.eventdata.status">^0xc000006a$</field>
+
+    <description>NTLM credential validation failed - wrong password - User: $(win.eventdata.targetUserName) - Workstation: $(win.eventdata.workstation)</description>
+  </rule>
+
+  <rule id="101311" level="5">
+    <if_group>windows_security</if_group>
+
+    <field name="win.system.eventID">^4776$</field>
+    <field name="win.eventdata.packageName">^MICROSOFT_AUTHENTICATION_PACKAGE_V1_0$</field>
+    <field name="win.eventdata.status">^0xc0000064$</field>
+
+    <description>NTLM credential validation failed - unknown account - User: $(win.eventdata.targetUserName) - Workstation: $(win.eventdata.workstation)</description>
   </rule>
 
 </group>

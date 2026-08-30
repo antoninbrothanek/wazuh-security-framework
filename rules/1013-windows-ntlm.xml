@@ -1,0 +1,22 @@
+<group name="windows,authentication,ntlm,">
+
+  <!-- ========================================================= -->
+  <!-- NTLMv1 authenticated network logon                         -->
+  <!-- Event ID 4624 / NTLM V1                                   -->
+  <!-- Anonymous logons are intentionally excluded.               -->
+  <!-- ========================================================= -->
+
+  <rule id="101300" level="10">
+    <if_group>authentication_success</if_group>
+
+    <field name="win.system.eventID">^4624$</field>
+    <field name="win.eventdata.logonType">^3$</field>
+    <field name="win.eventdata.authenticationPackageName">^NTLM$</field>
+    <field name="win.eventdata.lmPackageName">^NTLM V1$</field>
+    <field name="win.eventdata.targetUserName" negate="yes">^ANONYMOUS LOGON$</field>
+
+    <description>NTLMv1 authenticated network logon - User: $(win.eventdata.targetDomainName)\$(win.eventdata.targetUserName) - Source: $(win.eventdata.workstationName) ($(win.eventdata.ipAddress))</description>
+
+  </rule>
+
+</group>

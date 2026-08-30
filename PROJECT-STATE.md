@@ -1,12 +1,29 @@
 # Wazuh Security Framework – Project State
 
-Last updated: 2026-08-14
+Last updated: 2026-08-30
 
 ## Project goal
 
 Build a reusable Wazuh security monitoring framework that can later be deployed in larger production environments.
 
 The Git repository is the authoritative source of configuration and project state.
+
+## Framework direction
+
+WSF is evolving from pure security-event detection toward an evidence-driven **Security Posture + Monitoring** model.
+
+The framework should support the full operational cycle:
+
+1. measure the real security posture from telemetry;
+2. identify legacy, weak or unnecessary authentication dependencies;
+3. define a documented target state;
+4. recommend controlled hardening measures such as Group Policy changes;
+5. validate changes in a pilot scope;
+6. use Wazuh telemetry to verify the effect and detect regressions.
+
+WSF does not directly enforce operating-system or Group Policy hardening. It provides evidence, detection, recommendations and post-change validation. Enforcement remains an explicitly approved administrative change outside Wazuh.
+
+For authentication hardening, protocol and cryptographic controls must be treated as related but distinct subjects. NTLM usage, NTLMv1/NTLMv2 posture, Kerberos fallback behavior and Kerberos encryption types such as RC4 versus AES must not be conflated into one detection rule or one policy decision.
 
 ## Document roles
 
@@ -279,7 +296,7 @@ Final decision:
 
 - no generic custom Event 4769 failure rule in v0.3.0;
 - classify account type, service principal, source, timing and workload before deciding whether a 4769 failure is security-relevant;
-- avoid duplicating adequate stock Wazuh failure alerts without a portable detection requirement.
+- avoid duplicating adequate stock Wazuh failure alerts without a portable evidence-backed requirement.
 
 ## Kerberos dashboard
 
@@ -307,22 +324,46 @@ Result: Kerberos dashboard PASS.
 
 Kerberos v0.3.0 is complete. The active milestone is now NTLM Monitoring v0.4.0.
 
-Initial approved work:
+The milestone is expanded from failure detection into an evidence-driven NTLM posture and hardening assessment. The objective is not merely to detect failed NTLM authentication, but to understand where NTLM is still used, why it is used, what depends on it, and whether it can be reduced safely.
 
-1. define the NTLM monitoring scope and completion criteria;
-2. inventory relevant Windows event sources, starting with Event 4776;
-3. inspect stock Wazuh coverage and raw-event availability;
-4. classify real NTLM success/failure patterns before implementing custom rules;
-5. define notification policy only after the event semantics and operational noise are understood;
-6. build NTLM dashboard and final documentation after detection decisions are validated.
+### NTLM v0.4.0 workstream
 
-No new NTLM custom rule is approved at milestone start.
+1. **NTLM detection**
+   - inventory Event 4776 and related authentication events;
+   - classify relevant failure statuses and existing stock Wazuh coverage;
+   - approve custom detection or correlation rules only when evidence justifies them;
+   - define notification policy after operational noise is understood.
+
+2. **NTLM usage and posture**
+   - identify systems and accounts still using NTLM;
+   - distinguish successful use from authentication failures;
+   - determine available evidence for NTLMv1 versus NTLMv2;
+   - identify service, application and infrastructure dependencies;
+   - establish a measurable NTLM baseline before enforcement changes.
+
+3. **NTLM hardening**
+   - define a target state in which Kerberos is preferred for domain authentication;
+   - target zero NTLMv1 and LM use;
+   - minimize NTLMv2 use to documented dependencies that cannot yet use Kerberos;
+   - use audit-only policy settings before restrictive enforcement where possible;
+   - remediate dependencies before broader restriction;
+   - validate the effect of policy changes through Wazuh telemetry.
+
+### Target operating model
+
+`measure -> understand -> define target state -> pilot hardening -> verify -> enforce`
+
+Group Policy changes must not be introduced solely because a protocol is considered legacy. WSF must first provide sufficient evidence to understand the operational impact. Restrictive policy is approved only after dependencies and exceptions are documented.
+
+NTLM and Kerberos cryptographic hardening remain separate technical workstreams. For example, removal of Kerberos RC4 and migration toward AES are future authentication-hardening tasks and must be assessed from Kerberos telemetry rather than being treated as an NTLM setting.
+
+No new NTLM custom rule is approved solely by this scope expansion. Detection rules still require validated event evidence.
 
 ---
 
 # Important project rule
 
-Do not expand the scope while working on the current module.
+Do not expand the scope while working on the current module unless the expansion directly strengthens the approved module objective and is recorded in `PROJECT-STATE.md` and the roadmap.
 
 Do not add new features just because they might be useful.
 

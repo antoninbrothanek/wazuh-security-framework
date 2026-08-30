@@ -1,6 +1,6 @@
 # Wazuh Security Framework Roadmap
 
-Last reviewed: 2026-08-14
+Last reviewed: 2026-08-30
 
 ## Status model
 
@@ -12,22 +12,41 @@ The roadmap describes planned project progression. `PROJECT-STATE.md` remains th
 
 ---
 
+## Strategic direction
+
+WSF is expanding from event detection into an evidence-driven **Security Posture + Monitoring** framework.
+
+The intended operating cycle is:
+
+`measure -> understand -> define target state -> pilot hardening -> verify -> enforce`
+
+The framework should use Wazuh telemetry to identify weak or legacy security dependencies, recommend controlled hardening and verify the effect of approved changes. WSF does not directly enforce Group Policy or operating-system security settings.
+
+Authentication hardening is split into separate technical workstreams. NTLM usage and restriction, Kerberos behavior, and Kerberos cryptographic hardening such as RC4 removal and AES migration must be measured and changed independently even when they contribute to the same overall security objective.
+
+---
+
 ## Immediate next work
 
 Kerberos v0.3.0 is complete. The active milestone is now:
 
-## v0.4.0 NTLM Monitoring
+## v0.4.0 NTLM Monitoring and Hardening Assessment
 
-Initial work begins with evidence collection and scope definition:
+The milestone begins with evidence collection and deliberately uses audit before enforcement:
 
-1. define NTLM monitoring scope and completion criteria;
-2. inventory Event 4776 and related Windows authentication events;
+1. define NTLM monitoring and posture completion criteria;
+2. inventory Event 4776 and related Windows authentication/NTLM event sources;
 3. inspect stock Wazuh coverage and raw-event availability;
 4. classify real NTLM success and failure patterns before creating custom rules;
-5. define notification policy after validating operational noise and security value;
-6. build the NTLM dashboard and complete final documentation after detection decisions are validated.
+5. identify systems, accounts, services and applications that still depend on NTLM;
+6. determine which telemetry can distinguish NTLMv1 from NTLMv2;
+7. establish an NTLM usage baseline before restrictive policy changes;
+8. define the target state: Kerberos preferred, zero NTLMv1/LM, NTLMv2 minimized to documented dependencies;
+9. design audit-only and pilot Group Policy hardening steps before enforcement;
+10. use Wazuh telemetry to validate the effect and detect remaining or unexpected NTLM dependencies;
+11. finalize detection rules, notification policy, dashboard and documentation from validated evidence.
 
-No NTLM custom rule is approved at milestone start.
+No NTLM custom rule or restrictive Group Policy setting is approved solely by this roadmap update.
 
 ---
 
@@ -113,7 +132,9 @@ Status: COMPLETE.
 
 ## v0.4.0 NTLM
 
-Goal: establish evidence-driven monitoring of NTLM credential validation and related authentication behavior without treating every NTLM use or failure as an incident.
+Goal: establish evidence-driven monitoring and hardening assessment of NTLM without treating every NTLM use or failure as an incident and without introducing restrictive policy before dependencies are understood.
+
+### Detection
 
 - [~] NTLM monitoring scope
 - [ ] Event 4776 baseline inventory
@@ -121,12 +142,50 @@ Goal: establish evidence-driven monitoring of NTLM credential validation and rel
 - [ ] Real success/failure scenario classification
 - [ ] Detection-rule decisions
 - [ ] Notification policy
+
+### Usage and posture
+
+- [ ] NTLM usage baseline
+- [ ] Top systems/workstations using NTLM
+- [ ] Top accounts using NTLM
+- [ ] Service/application dependency classification
+- [ ] NTLMv1 versus NTLMv2 telemetry assessment
+- [ ] Documented exceptions/dependencies
+
+### Hardening assessment
+
+- [ ] Define NTLM target state
+- [ ] Target zero LM and NTLMv1 use
+- [ ] Minimize NTLMv2 to documented dependencies
+- [ ] Review relevant audit-only Group Policy controls
+- [ ] Pilot restrictive policy only after dependency remediation
+- [ ] Verify policy impact and residual NTLM usage with Wazuh
+
+### Visibility and closure
+
 - [ ] NTLM dashboard
 - [ ] Documentation
+- [ ] Final detection and hardening decision record
 
-Initial evidence work starts with Event 4776. Existing Windows Authentication testing already observed Event 4776 during controlled NTLM failures, including statuses `0xc000006a` and `0xc0000234`; those observations are baseline evidence, not yet an approved v0.4.0 detection policy.
+Initial evidence work starts with Event 4776 and related NTLM audit telemetry. Existing Windows Authentication testing is baseline evidence, not by itself an approved detection or hardening policy.
 
 Status: ACTIVE MILESTONE.
+
+---
+
+## Future Authentication Hardening
+
+This work follows evidence from the authentication modules and is deliberately separated from NTLM policy.
+
+Planned subjects include:
+
+- Kerberos encryption-type inventory;
+- identification of RC4 dependencies;
+- AES readiness and migration assessment;
+- controlled removal of weak Kerberos encryption where operational evidence supports it;
+- post-change verification through Wazuh telemetry.
+
+The target direction is to remove legacy authentication and weak cryptography without introducing undocumented outages or blanket exclusions.
 
 ---
 

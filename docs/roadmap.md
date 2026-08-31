@@ -1,6 +1,6 @@
 # Wazuh Security Framework Roadmap
 
-Last reviewed: 2026-08-30
+Last reviewed: 2026-08-31
 
 ## Status model
 
@@ -35,7 +35,7 @@ Kerberos v0.3.0 is complete. The active milestone is now:
 The milestone begins with evidence collection and deliberately uses audit before enforcement:
 
 1. define NTLM monitoring and posture completion criteria;
-2. inventory Event 4776 and related Windows authentication/NTLM event sources;
+2. inventory Event 4776 and related authentication events;
 3. inspect stock Wazuh coverage and raw-event availability;
 4. classify real NTLM success and failure patterns before creating custom rules;
 5. identify systems, accounts, services and applications that still depend on NTLM;
@@ -47,6 +47,26 @@ The milestone begins with evidence collection and deliberately uses audit before
 11. finalize detection rules, notification policy, dashboard and documentation from validated evidence.
 
 No NTLM custom rule or restrictive Group Policy setting is approved solely by this roadmap update.
+
+### Windows audit telemetry provisioning
+
+Portable telemetry provisioning is being added as a prerequisite for evidence-based NTLM and authentication assessment.
+
+- [x] Declarative Domain Controller audit telemetry policy defined in `policies/windows/domain-controller-audit.xml`
+- [x] Read-only planner implemented in `scripts/windows/create_wazuh_audit.ps1`
+- [x] Runtime resolution of Domain Admins, Enterprise Admins and Schema Admins SIDs validated against real Active Directory
+- [x] PowerShell 7 / `WinPSCompatSession` compatibility validated for ActiveDirectory and GroupPolicy modules
+- [x] Safe creation of an empty, unlinked GPO implemented in `scripts/windows/create_wazuh_audit_gpo.ps1`
+- [x] Empty unlinked GPO creation validated in a real AD environment
+- [ ] Implement native GPO writers for Advanced Audit Policy
+- [ ] Implement native GPO writers for Security Options / NTLM auditing
+- [ ] Implement SpecialGroups registry preference generation
+- [ ] Implement Event Channel configuration
+- [ ] Generate and compare `Get-GPOReport` output against the declarative XML
+- [ ] Pilot-link the completed telemetry GPO only after configuration verification
+- [ ] Verify resulting Windows telemetry and Wazuh ingestion after pilot application
+
+Current safety rule: provisioning scripts do not automatically link GPOs. Linking remains an explicit administrator action outside the automated creation stage.
 
 ---
 

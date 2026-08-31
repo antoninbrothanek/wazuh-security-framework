@@ -71,9 +71,12 @@
     <Group type="ForestRootDomainRid" name="SchemaAdmins" rid="518" />
   </SpecialGroups>
 
+  <!-- Event channels are telemetry prerequisites. The GPO writer validates this
+       declaration but does not write directly to WINEVT channel-registration
+       registry keys. Collection is configured separately in Wazuh agent config. -->
   <EventChannels>
     <Channel name="Security" enabled="true" />
-    <Channel name="Microsoft-Windows-NTLM/Operational" enabled="true" minimumSizeMB="32" />
+    <Channel name="Microsoft-Windows-NTLM/Operational" enabled="true" />
   </EventChannels>
 
   <Deployment>

@@ -19,6 +19,35 @@ The framework is designed for long-term operation in production and follows one 
 - Include dashboards and alerting for every module.
 - Maintain complete documentation and testing.
 - Make every module portable to another Wazuh installation.
+- Prove telemetry coverage before drawing conclusions from missing findings.
+- Separate evidence collection, posture assessment and hardening from enforcement.
+
+## Security Posture + Monitoring
+
+WSF is evolving from pure event detection into an evidence-driven **Security Posture + Monitoring** framework.
+
+The intended operating cycle is:
+
+`measure -> understand -> define target state -> pilot hardening -> verify -> enforce`
+
+WSF can define and validate telemetry prerequisites and produce deployment plans for Group Policy, but hardening and policy linking remain explicitly controlled administrative actions. The framework must not assume that an absence of alerts means an absence of activity unless the required Windows event sources are demonstrably enabled and collected by Wazuh.
+
+## Windows audit telemetry provisioning
+
+The repository contains a portable Domain Controller telemetry definition under:
+
+- `policies/windows/domain-controller-audit.xml`
+
+The policy describes the Windows audit telemetry required by the framework without embedding customer-specific domains, SIDs, hostnames or OU paths. Domain-specific privileged-group SIDs are resolved at runtime.
+
+Provisioning is intentionally staged:
+
+1. `scripts/windows/create_wazuh_audit.ps1` validates the XML, resolves AD context and SIDs, and prints a read-only provisioning plan.
+2. `scripts/windows/create_wazuh_audit_gpo.ps1` can create a new **empty, unlinked GPO** after validation.
+3. Audit settings, security options, registry preferences and event-channel configuration are verified separately before any linking or wider deployment.
+4. GPO linking is an explicit administrator action and is never performed automatically by the current provisioning scripts.
+
+The planner and safe GPO-creation stage have been validated against a real Active Directory forest, including PowerShell 7 environments where the ActiveDirectory and GroupPolicy modules are loaded through `WinPSCompatSession`.
 
 ## Modules
 

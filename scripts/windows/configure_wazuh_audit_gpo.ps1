@@ -169,11 +169,6 @@ function Get-AuditSetting {
     return [pscustomobject]@{ Inclusion = 'No Auditing'; Value = 0 }
 }
 
-function Quote-CsvField {
-    param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Value)
-    return '"' + $Value.Replace('"', '""') + '"'
-}
-
 function Write-Utf8NoBom {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -472,17 +467,14 @@ try {
     }
     $securityTemplate = ($securityLines -join "`r`n") + "`r`n"
 
+    # MS-GPAC 2.2 is not generic RFC-style CSV. Some fields permit quoted
+    # strings, but Policy Target, Subcategory GUID and Setting Value have strict
+    # grammar and must not be serialized as quoted CSV fields. Keep the payload
+    # deliberately simple and ASCII; none of the approved WSF names contain a
+    # comma, so quoting is unnecessary.
     $auditLines = @('Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting,Setting Value')
     foreach ($row in $auditRows) {
-        $auditLines += @(
-            (Quote-CsvField 'WSF'),
-            (Quote-CsvField 'System'),
-            (Quote-CsvField $row.Name),
-            (Quote-CsvField $row.Guid),
-            (Quote-CsvField $row.Inclusion),
-            (Quote-CsvField ''),
-            (Quote-CsvField ([string]$row.Value))
-        ) -join ','
+        $auditLines += ('WSF,System,{0},{1},{2},,{3}' -f $row.Name, $row.Guid, $row.Inclusion, $row.Value)
     }
     $auditCsv = ($auditLines -join "`r`n") + "`r`n"
 
@@ -588,9 +580,24 @@ try {
     $reportXmlPath = Join-Path $env:TEMP ('WSF-GPO-Report-' + $gpoId.ToString() + '.xml')
     Get-GPOReport -Guid $gpoId -Domain $domainName -Server $pdcName -ReportType Xml -Path $reportXmlPath -ErrorAction Stop
 
+    # Import-Csv only verifies generic CSV structure. GPMC uses the stricter
+    # MS-GPAC parser. Treat any audit.csv parsing error in Get-GPOReport as a
+    # hard failure so a malformed Advanced Audit Policy can never be reported as
+    # successfully configured.
+    [xml]$verifiedReportXml = Get-Content -LiteralPath $reportXmlPath -Raw
+    $reportErrors = @($verifiedReportXml.SelectNodes("//*[local-name()='Error']"))
+    $auditReportErrors = @($reportErrors | Where-Object {
+        $_.InnerText -match '(?i)audit\.csv|Advanced Audit|Auditing|CorruptAuditFile'
+    })
+    if ($auditReportErrors.Count -gt 0) {
+        $auditErrorText = (($auditReportErrors | ForEach-Object { $_.InnerText.Trim() }) -join ' | ')
+        throw "Verification failed: GPMC rejected Advanced Audit Policy audit.csv. Details: $auditErrorText"
+    }
+
     Write-Host ('GPO verification           : PASS')
     Write-Host ('Security template          : PASS')
     Write-Host ('Advanced audit rows        : PASS ({0})' -f $writtenAuditRows.Count)
+    Write-Host ('GPMC audit parser          : PASS')
     Write-Host ('GPO report                 : {0}' -f $reportXmlPath)
     Write-Host ('Computer version           : {0}' -f $verified.Computer.DSVersion)
 
@@ -603,7 +610,7 @@ try {
     Write-Host 'gpupdate                  : NOT PERFORMED'
     Write-Host ('Backup                    : {0}' -f $backupRoot)
     Write-Host ''
-    Write-Host 'RESULT: WSF audit GPO configuration completed and basic structural verification passed.'
+    Write-Host 'RESULT: WSF audit GPO configuration completed and GPMC structural verification passed.'
     Write-Host 'NEXT: Inspect Get-GPOReport and effective policy before any forced Group Policy refresh.'
 
     exit 0

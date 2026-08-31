@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WazuhSecurityFrameworkPolicy schemaVersion="1.0" policyVersion="0.1.0" role="DomainController">
+  <Metadata>
+    <Name>Wazuh Domain Controller Enable Logs Policy</Name>
+    <Description>Portable Windows audit telemetry definition required by Wazuh Security Framework for domain controllers.</Description>
+    <Scope>Computer</Scope>
+    <AutoLink>false</AutoLink>
+  </Metadata>
+
+  <SecurityOptions>
+    <ForceAdvancedAuditPolicy enabled="true" />
+
+    <NTLMAuditing>
+      <Incoming mode="AuditAllAccounts" />
+      <DomainAuthentication mode="AuditAll" />
+      <Outgoing mode="AuditAll" />
+    </NTLMAuditing>
+  </SecurityOptions>
+
+  <AdvancedAuditPolicy>
+    <Category name="Account Logon">
+      <Subcategory name="Credential Validation" success="true" failure="true" />
+      <Subcategory name="Kerberos Authentication Service" success="true" failure="true" />
+      <Subcategory name="Kerberos Service Ticket Operations" success="true" failure="true" />
+      <Subcategory name="Other Account Logon Events" success="true" failure="true" />
+    </Category>
+
+    <Category name="Account Management">
+      <Subcategory name="Application Group Management" success="true" failure="false" />
+      <Subcategory name="Computer Account Management" success="true" failure="false" />
+      <Subcategory name="Distribution Group Management" success="true" failure="false" />
+      <Subcategory name="Other Account Management Events" success="true" failure="false" />
+      <Subcategory name="Security Group Management" success="true" failure="false" />
+      <Subcategory name="User Account Management" success="true" failure="false" />
+    </Category>
+
+    <Category name="Detailed Tracking">
+      <Subcategory name="Process Creation" success="true" failure="false" />
+    </Category>
+
+    <Category name="DS Access">
+      <Subcategory name="Directory Service Changes" success="true" failure="false" />
+    </Category>
+
+    <Category name="Logon/Logoff">
+      <Subcategory name="Account Lockout" success="true" failure="false" />
+      <Subcategory name="Logoff" success="true" failure="false" />
+      <Subcategory name="Logon" success="true" failure="true" />
+      <Subcategory name="Special Logon" success="true" failure="false" />
+    </Category>
+
+    <Category name="Policy Change">
+      <Subcategory name="Audit Policy Change" success="true" failure="false" />
+      <Subcategory name="Authentication Policy Change" success="true" failure="false" />
+      <Subcategory name="Authorization Policy Change" success="true" failure="false" />
+    </Category>
+
+    <Category name="Privilege Use">
+      <Subcategory name="Sensitive Privilege Use" success="true" failure="false" />
+    </Category>
+
+    <Category name="System">
+      <Subcategory name="Security System Extension" success="true" failure="false" />
+    </Category>
+  </AdvancedAuditPolicy>
+
+  <SpecialGroups>
+    <Group type="WellKnownSid" name="BuiltinAdministrators" sid="S-1-5-32-544" />
+    <Group type="DomainRid" name="DomainAdmins" rid="512" />
+    <Group type="ForestRootDomainRid" name="EnterpriseAdmins" rid="519" />
+    <Group type="ForestRootDomainRid" name="SchemaAdmins" rid="518" />
+  </SpecialGroups>
+
+  <EventChannels>
+    <Channel name="Security" enabled="true" />
+    <Channel name="Microsoft-Windows-NTLM/Operational" enabled="true" minimumSizeMB="32" />
+  </EventChannels>
+
+  <Deployment>
+    <CreateGpo>true</CreateGpo>
+    <LinkGpo>false</LinkGpo>
+    <RequireExplicitLinkTarget>true</RequireExplicitLinkTarget>
+  </Deployment>
+</WazuhSecurityFrameworkPolicy>

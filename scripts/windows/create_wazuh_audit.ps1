@@ -129,6 +129,35 @@ function Get-RequiredAttribute {
     return $Node.Attributes[$Name].Value
 }
 
+function ConvertTo-SidString {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Sid,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Context
+    )
+
+    if ($null -eq $Sid) {
+        throw "SID is unavailable for $Context."
+    }
+
+    $sidText = $null
+
+    if ($null -ne $Sid.PSObject.Properties['Value']) {
+        $sidText = [string]$Sid.Value
+    }
+    else {
+        $sidText = [string]$Sid
+    }
+
+    if ($sidText -notmatch '^S-1-[0-9-]+$') {
+        throw "Invalid SID '$sidText' returned for $Context."
+    }
+
+    return $sidText
+}
+
 function Resolve-WsfSpecialGroupSid {
     param(
         [Parameter(Mandatory = $true)][System.Xml.XmlNode]$Group,
@@ -313,21 +342,22 @@ try {
     if ($resolveActiveDirectory) {
         Write-Section 'ACTIVE DIRECTORY CONTEXT'
 
-        if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
-            throw 'ActiveDirectory PowerShell module is required for SID resolution. Install RSAT AD PowerShell or use -SkipActiveDirectoryResolution for offline validation.'
+        try {
+            Import-Module ActiveDirectory -ErrorAction Stop
         }
-
-        Import-Module ActiveDirectory -ErrorAction Stop
+        catch {
+            throw "ActiveDirectory PowerShell module could not be loaded. Install RSAT AD PowerShell or use -SkipActiveDirectoryResolution for offline validation. Details: $($_.Exception.Message)"
+        }
 
         $domain = Get-ADDomain -ErrorAction Stop
         $forest = Get-ADForest -ErrorAction Stop
         $rootDomain = Get-ADDomain -Identity $forest.RootDomain -ErrorAction Stop
 
-        $domainName = $domain.DNSRoot
-        $domainSid = $domain.DomainSID.Value
-        $forestName = $forest.Name
-        $forestRootDomain = $forest.RootDomain
-        $forestRootDomainSid = $rootDomain.DomainSID.Value
+        $domainName = [string]$domain.DNSRoot
+        $domainSid = ConvertTo-SidString -Sid $domain.DomainSID -Context 'current domain'
+        $forestName = [string]$forest.Name
+        $forestRootDomain = [string]$forest.RootDomain
+        $forestRootDomainSid = ConvertTo-SidString -Sid $rootDomain.DomainSID -Context 'forest root domain'
 
         Write-Host ('Domain              : {0}' -f $domainName)
         Write-Host ('Domain SID          : {0}' -f $domainSid)
@@ -391,11 +421,20 @@ try {
         throw 'EventChannels contains no Channel elements.'
     }
 
-    # Optional read-only GPO discovery. The planner must never require GroupPolicy
-    # merely to lint an XML file offline.
+    # Optional read-only GPO discovery. Try the module directly so PowerShell 7
+    # can load Windows PowerShell modules through its compatibility session.
     $existingGpo = $null
-    if (Get-Module -ListAvailable -Name GroupPolicy) {
+    $groupPolicyAvailable = $false
+
+    try {
         Import-Module GroupPolicy -ErrorAction Stop
+        $groupPolicyAvailable = $true
+    }
+    catch {
+        $groupPolicyAvailable = $false
+    }
+
+    if ($groupPolicyAvailable) {
         try {
             $existingGpo = Get-GPO -Name $effectiveGpoName -ErrorAction Stop
         }
@@ -441,7 +480,7 @@ try {
         Write-Host 'Action               : NONE (read-only planner)'
     }
     else {
-        Write-Host 'Existing GPO found : NO or GroupPolicy module unavailable'
+        Write-Host ('Existing GPO found : {0}' -f $(if ($groupPolicyAvailable) { 'NO' } else { 'UNKNOWN (GroupPolicy module unavailable)' }))
         Write-Host ('Planned GPO        : {0}' -f $effectiveGpoName)
         Write-Host 'Action             : NONE (read-only planner)'
     }
@@ -452,6 +491,7 @@ try {
     Write-Host ('Special groups             : PASS ({0})' -f $specialGroupRows.Count)
     Write-Host ('Event channels             : PASS ({0})' -f $eventChannelRows.Count)
     Write-Host ('SID resolution             : {0}' -f $(if ($resolveActiveDirectory) { 'PASS' } else { 'SKIPPED' }))
+    Write-Host ('GPO discovery              : {0}' -f $(if ($groupPolicyAvailable) { 'PASS' } else { 'SKIPPED' }))
     Write-Host 'Automatic GPO linking       : DISABLED'
     Write-Host 'Production changes          : NONE'
 
